@@ -21,4 +21,4 @@ conda activate key
 
 conda install pytorch torchvision -c pytorch
 
-conda-forge audioreadconda install -c 
+conda install -c conda-forge audioread
