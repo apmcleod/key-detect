@@ -7,3 +7,5 @@ GTZAN keys: http://visal.cs.cityu.edu.hk/downloads/#gtzankeys
 In: Intl. Conference on MultiMedia Modeling (MMM), Taipei, Jan 2011.
 
 GiantStepsKey (electronic music): https://github.com/GiantSteps/giantsteps-key-dataset
+
+https://www.dropbox.com/s/dnca94fnr5afmgb/Transposition%20mission.pdf?dl=0
