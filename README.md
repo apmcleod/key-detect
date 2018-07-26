@@ -21,4 +21,4 @@ conda activate key
 
 conda install pytorch torchvision -c pytorch
 
-conda install -c conda-forge audioread
+conda install -c conda-forge librosa
