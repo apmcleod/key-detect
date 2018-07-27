@@ -1,0 +1,4 @@
+data/working/*.npz
+data/working/splits/**
+__pycache__/**
+.ipynb_checkpoints/**
