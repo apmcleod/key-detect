@@ -4,6 +4,7 @@ import os
 import random
 import math
 from glob import glob
+import madmom.audio.chroma
 
 
 DATA_PREFIX = 'data/raw/'
@@ -208,7 +209,7 @@ def create_random_splits(split_size=32):
 
 
 def load_splits(indexes):
-    # Load the splits from the given index (inclusive) to the given index (exclusive)
+    # Load the splits from the given indexes
     X = np.zeros((NUM_SAMPLES_GTZAN, 0))
     Y = np.zeros((24, 0))
     
@@ -221,3 +222,48 @@ def load_splits(indexes):
     return X, Y
 
 
+def load_chroma_splits(indexes):
+    # Load the chroma splits from the given indexes
+    X = np.zeros((300, 12, 0))
+    Y = np.zeros((24, 0))
+    
+    for idx in indexes:
+        X_new, Y_new = load_np_data('chroma_splits/chroma_' + str(idx))
+        
+        X = np.append(X, X_new, axis=2)
+        Y = np.append(Y, Y_new, axis=1)
+        
+    return X, Y
+
+
+def generate_chroma_matrix_from_file(file):
+    dcp = madmom.audio.chroma.DeepChromaProcessor()
+    return dcp(file)
+
+
+def generate_chroma_matrix_from_vector(X):
+    librosa.output.write_wav('tmp.wav', np.reshape(X, -1), FS)
+    
+    chroma = generate_chroma_matrix_from_file('tmp.wav')
+    
+    os.remove('tmp.wav')
+    return chroma
+
+
+def generate_chroma_tensor_from_matrix(X):
+    chroma = np.zeros((300, 12, X.shape[1]))
+    
+    for column in range(X.shape[1]):
+        chroma[:, :, column] = generate_chroma_matrix_from_vector(X[:, column])
+        
+    return chroma
+
+
+def generate_chroma_splits_from_splits():
+    for split in range(27):
+        print('Generating from split ' + str(split) + '/26')
+        X, Y = load_splits([split])
+        X = generate_chroma_tensor_from_matrix(X)
+        
+        write_np_data(X, Y, 'chroma_splits/chroma_' + str(split))
+        
