@@ -3,6 +3,7 @@ import librosa
 import os
 import random
 import math
+import keys
 from glob import glob
 import madmom.audio.chroma
 
@@ -22,24 +23,7 @@ GENRE_SIZES = [99, 94, 81, 97, 0, 79, 98, 98, 98, 93]
 TOTAL_SIZE = np.sum(GENRE_SIZES)
 
 
-def get_vector_from_key(key):
-    vector = np.zeros(24)
-    if key == -1: # Unknown
-        return vector
-    if key < 12: #major
-        vector[key] = 1
-        vector[(key + 7) % 12] = 0.5
-        vector[(key + 9) % 12 + 12] = 0.3
-        vector[key + 12] = 0.2
-    else: # minor
-        vector[key] = 1
-        vector[(key + 7) % 12 + 12] = 0.5
-        vector[(key + 3) % 12] = 0.3
-        vector[key - 12] = 0.2
-        
-    vector /= 2
-    
-    return vector
+
 
 
 def read_data(file):
@@ -47,7 +31,7 @@ def read_data(file):
     # Output: audio_data, y
     #        audio_data = numpy array containing each sample's value as a float vector
     #        y = normalized ground truth scoring vector for the given file *FROM get_vector_from_key method, above.
-    y = get_vector_from_key(int(open(KEY_FILE_PREFIX + file + KEY_FILE_SUFFIX, 'r').read()))
+    y = keys.get_vector_from_key(int(open(KEY_FILE_PREFIX + file + KEY_FILE_SUFFIX, 'r').read()))
     y = np.reshape(y, (24, 1))
     audio_data, _ = librosa.core.load(GTZAN_PREFIX + file + GTZAN_SUFFIX, sr=FS, mono=True)
     audio_data = np.array(audio_data)

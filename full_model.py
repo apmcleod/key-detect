@@ -13,6 +13,7 @@ class Net(nn.Module):
         self.fc2 = nn.Linear(100, 24)
         
     def forward(self, x):
-        x = F.avg_pool1d(F.relu(x), 300)
+        x = F.avg_pool1d(F.relu(self.conv1(x)), 300)
+        x = x.view(-1, 32)
         x = F.relu(self.fc1(x))
-        return self.fc2(x)
+        return F.softmax(self.fc2(x), dim=1)
