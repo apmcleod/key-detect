@@ -137,7 +137,12 @@ def get_genre_and_song_idx_given_idx(idx, inclusive=True):
 
 
 
-def load_from_range(from_idx, to_idx):
+def load_from_range(from_idx=None, to_idx=None):
+    if from_idx is None:
+        from_idx = 0
+    if to_idx is None:
+        to_idx = TOTAL_SIZE
+    
     # Load the sample from a given index (inclusive) to a given index (exclusive)
     from_genre_idx, from_song_idx = get_genre_and_song_idx_given_idx(from_idx)
     to_genre_idx, to_song_idx = get_genre_and_song_idx_given_idx(to_idx, inclusive=False)
