@@ -15,3 +15,15 @@ class Net(nn.Module):
         x = F.avg_pool1d(F.relu(self.conv1(x)), 300)
         x = x.view(-1, 32)
         return F.softmax(self.fc1(x), dim=1)
+
+    
+class ShallowConvNet(nn.Module):
+    
+    def __init__(self):
+        super(ShallowConvNet, self).__init__()
+        self.conv1 = nn.Conv1d(12, 24, 1)
+        
+    def forward(self, x):
+        x = F.avg_pool1d(F.relu(self.conv1(x)), 300)
+        x = x.view(-1, 24)
+        return F.softmax(x, dim=1)
