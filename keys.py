@@ -25,6 +25,8 @@ STRING_MAP = ['A\tmajor',
              'G\tminor',
              'G#\tminor']
 
+KEY_SUM = 1 + 0.5 + 0.5 + 0.3 + 0.2
+
 def get_vector_from_key(key):
     vector = np.zeros(24)
     if key == -1: # Unknown
@@ -32,22 +34,22 @@ def get_vector_from_key(key):
     if key < 12: #major
         vector[key] = 1
         vector[(key + 7) % 12] = 0.5
+        vector[(key + 5) % 12] = 0.5
         vector[(key + 9) % 12 + 12] = 0.3
         vector[key + 12] = 0.2
     else: # minor
         vector[key] = 1
         vector[(key + 7) % 12 + 12] = 0.5
+        vector[(key + 5) % 12 + 12] = 0.5
         vector[(key + 3) % 12] = 0.3
         vector[key - 12] = 0.2
-        
-    vector /= 2
-    
-    return vector
 
+    vector /= KEY_SUM
+
+    return vector
 
 def get_string_from_idx(idx):
     return STRING_MAP[idx]
-
 
 def get_string_from_vector(vector):
     return STRING_MAP[np.argmax(vector)]
