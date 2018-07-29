@@ -43,11 +43,13 @@ def get_vector_from_key(key):
         vector[(key + 5) % 12 + 12] = 0.5
         vector[(key + 3) % 12] = 0.3
         vector[key - 12] = 0.2
-        
+
     vector /= KEY_SUM
-    
+
     return vector
 
+def get_string_from_idx(idx):
+    return STRING_MAP[idx]
 
 def get_string_from_vector(vector):
     return STRING_MAP[np.argmax(vector)]
