@@ -10,6 +10,9 @@ GTZAN labels: https://github.com/alexanderlerch/gtzan_key
 ### GiantSteps
 GiantStepsKey (electronic music): https://github.com/GiantSteps/giantsteps-key-dataset
 
+### MSD
+Labels from: https://labrosa.ee.columbia.edu/millionsong/
+Data from: ...
 
 ## Notes
 https://www.dropbox.com/s/dnca94fnr5afmgb/Transposition%20mission.pdf?dl=0
