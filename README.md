@@ -19,6 +19,8 @@ https://www.dropbox.com/s/dnca94fnr5afmgb/Transposition%20mission.pdf?dl=0
 
 
 ## Installation
+
+### Packages
 ```
 conda create -n key python=3.6 numpy matplotlib jupyter pandas scipy scikit-learn cython seaborn
 conda activate key
@@ -26,3 +28,20 @@ conda install pytorch torchvision -c pytorch
 conda install -c conda-forge librosa
 pip install madmom
 ```
+
+### Data
+```
+cd data/raw
+wget http://opihi.cs.uvic.ca/sound/genres.tar.gz
+tar -xzf genres.tar.gz
+# creates genres
+
+wget https://github.com/alexanderlerch/gtzan_key/archive/master.zip
+unzip master.zip
+# creates gtzan_key-master
+
+wget http://static.echonest.com/millionsongsubset_full.tar.gz
+tar -xzf millionsongsubset_full.tar.gz
+# creates MillionSongSubset
+```
+
