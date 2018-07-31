@@ -10,6 +10,9 @@ GTZAN labels: https://github.com/alexanderlerch/gtzan_key
 ### GiantSteps
 GiantStepsKey (electronic music): https://github.com/GiantSteps/giantsteps-key-dataset
 
+### GiantSteps-MTG
+GiantStepsKey 2 (electronic music): https://github.com/GiantSteps/giantsteps-mtg-key-dataset
+
 ### MSD
 Labels from: https://labrosa.ee.columbia.edu/millionsong/
 Data from: ...
@@ -39,6 +42,7 @@ tar -xzf genres.tar.gz
 # creates ./gtzan_key-master - the gtzan labels
 wget https://github.com/alexanderlerch/gtzan_key/archive/master.zip
 unzip master.zip
+rm master.zip
 
 # creates ./giantsteps-key-dataset/audio and ./giantsteps-key-dataset/annotations/keys
 #     the data and labels for giantsteps 
@@ -46,6 +50,15 @@ wget https://github.com/GiantSteps/giantsteps-key-dataset/archive/master.zip
 unzip master.zip
 cd giantsteps-key-dataset-master
 ./audio_dl.sh
+rm master.zip
+
+# creates ./giantsteps-mtg-key-dataset/audio and ./giantsteps-mtg-key-dataset/annotations/keys
+#     the data and labels for giantsteps 
+wget https://github.com/GiantSteps/giantsteps-mtg-key-dataset/archive/master.zip
+unzip master.zip
+cd giantsteps-mtg-key-dataset-master
+./audio_dl.sh
+rm master.zip
 
 # creates MillionSongSubset/data - the Million song dataset labels
 wget http://static.echonest.com/millionsongsubset_full.tar.gz

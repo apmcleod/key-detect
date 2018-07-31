@@ -1,29 +1,22 @@
 import numpy as np
 
-STRING_MAP = ['A\tmajor',
-             'A#\tmajor',
-             'B\tmajor',
-             'C\tmajor',
-             'C#\tmajor',
-             'D\tmajor',
-             'D#\tmajor',
-             'E\tmajor',
-             'F\tmajor',
-             'F#\tmajor',
-             'G\tmajor',
-             'G#\tmajor',
-             'A\tminor',
-             'A#\tminor',
-             'B\tminor',
-             'C\tminor',
-             'C#\tminor',
-             'D\tminor',
-             'D#\tminor',
-             'E\tminor',
-             'F\tminor',
-             'F#\tminor',
-             'G\tminor',
-             'G#\tminor']
+STRING_MAP = ['A\tmajor', 'A#\tmajor', 'B\tmajor', 'C\tmajor', 'C#\tmajor',
+             'D\tmajor', 'D#\tmajor', 'E\tmajor', 'F\tmajor', 'F#\tmajor',
+             'G\tmajor', 'G#\tmajor', 'A\tminor', 'A#\tminor', 'B\tminor',
+             'C\tminor', 'C#\tminor', 'D\tminor', 'D#\tminor', 'E\tminor',
+             'F\tminor', 'F#\tminor', 'G\tminor', 'G#\tminor']
+
+# for maping giant dataset labels to numbers
+note_letters = list('ABCDEFG')
+note_numbers = [0, 2, 3, 5, 7, 8, 10]
+for ii, letter in enumerate(list('ABCDEFG')):
+    note_letters.append('{}#'.format(letter))
+    note_numbers.append((note_numbers[ii]+1) % 12)
+    note_letters.append('{}b'.format(letter))
+    note_numbers.append((note_numbers[ii]-1) % 12)
+key_strings = ['{} major'.format(ll) for ll in note_letters] + ['{} minor'.format(ll) for ll in note_letters]
+key_numbers = note_numbers + [nn + 12 for nn in note_numbers]
+KEY_DICT = dict(zip(key_strings, key_numbers))
 
 KEY_SUM = 1 + 0.5 + 0.5 + 0.3 + 0.2
 

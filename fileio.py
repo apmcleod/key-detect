@@ -32,8 +32,17 @@ GTZAN_META = dict(
     TOTAL_SIZE = np.sum([99, 94, 81, 97, 0, 79, 98, 98, 98, 93])
 )
 
+GIANT_META = dict(
+    DATA_PREFIX = RAW_PREFIX + '/giantsteps-key-dataset-master/audio',
+    DATA_SUFFIX = '.LOFI.mp3',
+    LABEL_PREFIX = RAW_PREFIX + '/giantsteps-key-dataset-master/annotations/key',
+    LABEL_SUFFIX = '.LOFI.key',
+    GENRE_PREFIX = RAW_PREFIX + '/giantsteps-key-dataset-master/annotations/genre',
+    GENRE_SUFFIX = '.LOFI.genre'
+)
 
-def read_audio_data(filepath, fs):
+
+def read_audio_data(filepath, fs, duration=LENGTH):
     """
     Read audio data at a given rate from a given filepath
     
@@ -43,8 +52,16 @@ def read_audio_data(filepath, fs):
         the full path to the file to read
     fs : int
         the samplerate to import the file at
+    duration: int
+        max duration to read in seconds
+    
+    Returns
+    -------
+    audio_data : numpy array
+        A numpy array containing the wav data
+    
     """
-    audio_data, _ = librosa.core.load(filepath, sr=fs, mono=True)
+    audio_data, _ = librosa.core.load(filepath, sr=fs, mono=True, duration=duration)
     return audio_data
 
 
@@ -158,7 +175,7 @@ def load_all_data(chunk_size=CHUNK_SIZE,
     
     # Import giant-steps data =======
     if 'giant' in datasets:
-        labels_giant, curr_chunk_nr = load_gtzan_data(
+        labels_giant, curr_chunk_nr = load_giant_data(
                 chunk_start_nr=curr_chunk_nr,
                 chunk_size=chunk_size, 
                 max_records=max_records,
@@ -182,7 +199,8 @@ def load_all_data(chunk_size=CHUNK_SIZE,
     print('Writing labels')
     print('Labels saved in: {}'.format(labels_prefix))
     labels_raw = pd.concat([labels_gtzan, labels_giant, labels_msd], ignore_index=True)
-    labels_raw['key'] = labels_raw['key'].astype('int')
+    for col in ['key', 'chunk_idx', 'chunk_nr']:
+        labels_raw[col] = labels_raw[col].astype('int')
     labels_raw.to_pickle('{}/labels_raw.pkl'.format(labels_prefix))
     
     print('FINISHED IMPORT!')
@@ -197,13 +215,15 @@ def load_gtzan_data(chunk_start_nr,
     See load_all_data for more info. Split these into seperate functions
     to allow for easier hacking of partial imports (and adding new data)
     """
-    chunk_nr = chunk_start_nr
-    labels_gtzan = pd.DataFrame()
-    
     print('Processing GTZAN files {}'.format(20*'='))
-    gtzan_pattern = os.path.join(GTZAN_META['DATA_PREFIX'], '**', '*'+GTZAN_META['DATA_SUFFIX'])
+    
+    chunk_nr = chunk_start_nr
+    labels = pd.DataFrame()
+    meta = GTZAN_META
+    
+    pattern = os.path.join(meta['DATA_PREFIX'], '**', '*'+meta['DATA_SUFFIX'])
     # sorted important to preserve order
-    file_list = sorted(glob(gtzan_pattern, recursive=True))
+    file_list = sorted(glob(pattern, recursive=True))
     if max_records is not None:
         file_list = file_list[:max_records]
     for cc, files in enumerate(chunks(file_list, chunk_size)):
@@ -216,7 +236,7 @@ def load_gtzan_data(chunk_start_nr,
         for ii, filepath in enumerate(files):
             print('File {}/{}'.format(ii+1, len(files)), end="\r")
             file_stub = filepath.split('genres/')[1][:-3]
-            label_path = os.path.join(GTZAN_META['LABEL_PREFIX'], file_stub+GTZAN_META['LABEL_SUFFIX'])
+            label_path = os.path.join(meta['LABEL_PREFIX'], file_stub+meta['LABEL_SUFFIX'])
             key = int(open(label_path).read())
             if key == -1:
                 print('WARNING: key unknown/modulation, skipping {}'.format(filepath))
@@ -230,19 +250,20 @@ def load_gtzan_data(chunk_start_nr,
                 raw = 1,
                 key_shift = 0,
                 time_shift = 1.0,
-                chunk_nr = chunk_nr
+                chunk_nr = chunk_nr,
+                chunk_idx = ii
             )
-            labels_gtzan = labels_gtzan.append(file_labels, ignore_index=True)
+            labels = labels.append(file_labels, ignore_index=True)
             audio_data = read_audio_data(filepath, FS)
             audio_data = cut_or_pad_to_length(audio_data, NUM_SAMPLES)
             X_chunk[ii, :] = audio_data
         X_chunk = np.delete(X_chunk, delete_rows, axis=0)
         file_name = '{}/{}.npz'.format(chunk_prefix, chunk_name)
         np.savez_compressed(file_name, X=X_chunk)
-    labels_gtzan['majmin'] = ['major' if key < 12 else 'minor' for key in labels_gtzan['key']]
-    labels_gtzan['dataset'] = 'GTZAN'
-    labels_gtzan.to_pickle('{}/labels_gtzan.pkl'.format(labels_prefix))
-    return labels_gtzan, chunk_nr+1
+    labels['majmin'] = ['major' if key < 12 else 'minor' for key in labels['key']]
+    labels['dataset'] = 'gtzan'
+    labels.to_pickle('{}/labels_gtzan.pkl'.format(labels_prefix))
+    return labels, chunk_nr+1
     
 
 def load_giant_data(chunk_start_nr,
@@ -255,10 +276,57 @@ def load_giant_data(chunk_start_nr,
     to allow for easier hacking of partial imports (and adding new data)
     """
     print('Processing giant-steps files {}'.format(20*'='))
+    
     chunk_nr = chunk_start_nr
-    labels_giant = pd.DataFrame()
-#     return labels_gtzan, chunk_nr+1
-    return labels_giant, chunk_nr
+    labels = pd.DataFrame()
+    meta = GIANT_META
+    
+    pattern = os.path.join(meta['DATA_PREFIX'], '*'+meta['DATA_SUFFIX'])
+    # sorted important to preserve order
+    file_list = sorted(glob(pattern, recursive=True))
+    if max_records is not None:
+        file_list = file_list[:max_records]
+    for cc, files in enumerate(chunks(file_list, chunk_size)):
+        chunk_nr = chunk_start_nr + cc
+        delete_rows = []
+        # use len(files) instead of chunk_size as last chunk will be smaller
+        X_chunk = np.zeros((len(files), NUM_SAMPLES)) 
+        chunk_name = 'chunk{:04d}'.format(chunk_nr)
+        print('Processing chunk {} (size {})'.format(chunk_nr, len(files)))
+        for ii, filepath in enumerate(files):
+            print('File {}/{}'.format(ii+1, len(files)), end="\r")
+            file_stub = filepath.rsplit('/', 1)[1].split('.', 1)[0]
+            label_path = os.path.join(meta['LABEL_PREFIX'], file_stub+meta['LABEL_SUFFIX'])
+            key_str = open(label_path).read()
+            if key_str not in keys.KEY_DICT.keys():
+                print('WARNING: invalid key [{}], skipping {}'.format(key_str, filepath))
+                delete_rows += [ii]   
+                continue
+            key = keys.KEY_DICT[key_str]
+            genre_path = os.path.join(meta['GENRE_PREFIX'], file_stub+meta['GENRE_SUFFIX'])
+            genre_str = open(genre_path).read()
+            file_labels = dict(
+                filepath = filepath,
+                genre = genre_str,
+                key = key,
+                key_str = keys.get_string_from_idx(key).replace('\t', ' '),
+                raw = 1,
+                key_shift = 0,
+                time_shift = 1.0,
+                chunk_nr = chunk_nr,
+                chunk_idx = ii
+            )
+            labels = labels.append(file_labels, ignore_index=True)
+            audio_data = read_audio_data(filepath, FS)
+            audio_data = cut_or_pad_to_length(audio_data, NUM_SAMPLES)
+            X_chunk[ii, :] = audio_data
+        X_chunk = np.delete(X_chunk, delete_rows, axis=0)
+        file_name = '{}/{}.npz'.format(chunk_prefix, chunk_name)
+        np.savez_compressed(file_name, X=X_chunk)
+    labels['majmin'] = ['major' if key < 12 else 'minor' for key in labels['key']]
+    labels['dataset'] = 'giant'
+    labels.to_pickle('{}/labels_giant.pkl'.format(labels_prefix))
+    return labels, chunk_nr+1
 
 
 def load_msd_data(chunk_start_nr,
