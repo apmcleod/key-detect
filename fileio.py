@@ -281,3 +281,16 @@ if __name__ == "__main__":
     print("Performing initial data import")
     print("This expects data to have been downloaded as described in the README")
     load_all_data()
+    
+#     # Example of how to import a new datasource ('msd') without recreating old chunks
+#     ## get chunk number to start on i.e. the last chunk number +1
+#     chunk_start_nr = len([name for name in os.listdir(CHUNK_PREFIX)
+#                           if os.path.isfile(name)])
+#     ## You must call 'load_all_data', not 'load_msd_data' to correctly recreate the labels
+#     load_all_data(chunk_size=CHUNK_SIZE, 
+#                   max_records=None,
+#                   datasets=['msd'],
+#                   chunk_start_nr=chunk_start_nr,
+#                   validate_chunk_dir=False,
+#                   chunk_prefix=CHUNK_PREFIX,
+#                   labels_prefix=WORKING_PREFIX)
