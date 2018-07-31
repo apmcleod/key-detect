@@ -31,15 +31,23 @@ pip install madmom
 
 ### Data
 ```
+# creates ./genres - the gtzan data
 cd data/raw
 wget http://opihi.cs.uvic.ca/sound/genres.tar.gz
 tar -xzf genres.tar.gz
-# creates genres
 
+# creates ./gtzan_key-master - the gtzan labels
 wget https://github.com/alexanderlerch/gtzan_key/archive/master.zip
 unzip master.zip
-# creates gtzan_key-master
 
+# creates ./giantsteps-key-dataset/audio and ./giantsteps-key-dataset/annotations/keys
+#     the data and labels for giantsteps 
+wget https://github.com/GiantSteps/giantsteps-key-dataset/archive/master.zip
+unzip master.zip
+cd giantsteps-key-dataset-master
+./audio_dl.sh
+
+# creates MillionSongSubset/data - the Million song dataset labels
 wget http://static.echonest.com/millionsongsubset_full.tar.gz
 tar -xzf millionsongsubset_full.tar.gz
 # creates MillionSongSubset
