@@ -15,12 +15,12 @@ KEY_FILE_PREFIX = DATA_PREFIX + 'gtzan_key-master/gtzan_key/genres/'
 KEY_FILE_SUFFIX = '.lerch.txt'
 
 FS = 22050
-LENGTH_GTZAN = 30
-NUM_SAMPLES_GTZAN = FS * LENGTH_GTZAN
+LENGTH = 30
+NUM_SAMPLES = FS * LENGTH
 
 GENRES = ['country', 'pop', 'hiphop', 'reggae', 'classical', 'jazz', 'rock', 'blues', 'disco', 'metal']
 GENRE_SIZES = [99, 94, 81, 97, 0, 79, 98, 98, 98, 93]
-TOTAL_SIZE = np.sum(GENRE_SIZES)
+TOTAL_SIZE_GTZAN = np.sum(GENRE_SIZES)
 
 
 
@@ -58,7 +58,7 @@ def load_all_data(directory):
     #        Y = [24, num_files] size matrix, containing the key vect
     file_list = [y for x in os.walk(directory) for y in glob(os.path.join(x[0], '*' + GTZAN_SUFFIX))]
     
-    X = np.zeros((NUM_SAMPLES_GTZAN, 0))
+    X = np.zeros((NUM_SAMPLES, 0))
     Y = np.zeros((24, 0))
     
     file_num = 0
@@ -74,7 +74,7 @@ def load_all_data(directory):
             print('WARNING: key unknown/modulation, skipping: file=' + file_name)
             continue
         
-        audio_data1 = cut_or_pad_to_length(audio_data1, NUM_SAMPLES_GTZAN)
+        audio_data1 = cut_or_pad_to_length(audio_data1, NUM_SAMPLES)
         
         X = np.append(X, audio_data1, axis=1)
         
@@ -149,7 +149,7 @@ def load_from_range(from_idx=None, to_idx=None):
     
     #print('loading from ' + str((from_genre_idx, from_song_idx)) + ' to ' + str((to_genre_idx, to_song_idx)))
     
-    X = np.zeros((NUM_SAMPLES_GTZAN, 0))
+    X = np.zeros((NUM_SAMPLES, 0))
     Y = np.zeros((24, 0))
     
     for genre_idx in range(from_genre_idx, to_genre_idx + 1):
@@ -181,7 +181,7 @@ def create_random_splits(split_size=32):
 
     for split_num in range(math.ceil(TOTAL_SIZE / split_size)):
         print('Making split ' + str(split_num) + '/' + str(TOTAL_SIZE // split_size))
-        X = np.zeros((NUM_SAMPLES_GTZAN, 0))
+        X = np.zeros((NUM_SAMPLES, 0))
         Y = np.zeros((24, 0))
 
         for song_idx_idx in range(split_size * split_num, min(split_size * (split_num + 1), TOTAL_SIZE)):
@@ -199,7 +199,7 @@ def create_random_splits(split_size=32):
 
 def load_splits(indexes):
     # Load the splits from the given indexes
-    X = np.zeros((NUM_SAMPLES_GTZAN, 0))
+    X = np.zeros((NUM_SAMPLES, 0))
     Y = np.zeros((24, 0))
     
     for idx in indexes:
