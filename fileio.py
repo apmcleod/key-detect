@@ -50,7 +50,7 @@ GIANT_MTG_META = dict(
     DATA_SUFFIX = '.LOFI.mp3',
     LABEL_PREFIX = RAW_PREFIX + '/giantsteps-mtg-key-dataset-master/annotations/key',
     LABEL_SUFFIX = '.LOFI.key',
-    GENRE_PREFIX = RAW_PREFIX + '/giantsteps-key-dataset-master/annotations/genre',
+    GENRE_PREFIX = RAW_PREFIX + '/giantsteps-mtg-key-dataset-master/annotations/genre',
     GENRE_SUFFIX = '.LOFI.genre'
 )
 
@@ -199,7 +199,7 @@ def load_all_data(chunk_size=CHUNK_SIZE,
         
     # Import giantsteps-mtg data =======
     if 'giant_mtg' in datasets:
-        labels_giant, curr_chunk_nr = load_giant_data(
+        labels_giant_mtg, curr_chunk_nr = load_giant_data(
                 chunk_start_nr=curr_chunk_nr,
                 chunk_size=chunk_size, 
                 max_records=max_records,
@@ -327,14 +327,14 @@ def load_giant_data(chunk_start_nr,
             print('File {}/{}'.format(ii+1, len(files)), end="\r")
             file_stub = filepath.rsplit('/', 1)[1].split('.', 1)[0]
             label_path = os.path.join(meta['LABEL_PREFIX'], file_stub+meta['LABEL_SUFFIX'])
-            key_str = open(label_path).read()
+            key_str = open(label_path).read().split('\t')[0]  # mtg changed the format >_<
             if key_str not in keys.KEY_DICT.keys():
                 print('WARNING: invalid key [{}], skipping {}'.format(key_str, filepath))
                 delete_rows += [ii]   
                 continue
             key = keys.KEY_DICT[key_str]
             genre_path = os.path.join(meta['GENRE_PREFIX'], file_stub+meta['GENRE_SUFFIX'])
-            genre_str = open(genre_path).read()
+            genre_str = open(genre_path).read().strip()
             file_labels = dict(
                 filepath = filepath,
                 genre = genre_str,

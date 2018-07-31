@@ -7,9 +7,9 @@ STRING_MAP = ['A\tmajor', 'A#\tmajor', 'B\tmajor', 'C\tmajor', 'C#\tmajor',
              'F\tminor', 'F#\tminor', 'G\tminor', 'G#\tminor']
 
 # for maping giant dataset labels to numbers
-note_letters = list('ABCDEFG')
-note_numbers = [0, 2, 3, 5, 7, 8, 10]
-for ii, letter in enumerate(list('ABCDEFG')):
+note_letters = list('ABCDEFGabcdefg')
+note_numbers = [0, 2, 3, 5, 7, 8, 10] * 2
+for ii, letter in enumerate(list('ABCDEFGabcdefg')):
     note_letters.append('{}#'.format(letter))
     note_numbers.append((note_numbers[ii]+1) % 12)
     note_letters.append('{}b'.format(letter))
