@@ -375,10 +375,42 @@ def load_msd_data(chunk_start_nr,
     return labels_msd, chunk_nr
 
 
+def make_labels(labels_prefix=WORKING_PREFIX):
+    """
+    This function is a placeholder for any label alteration that will
+    need to happen due to data augmentation. For example, if data is 
+    augmented by pitch shifting in a deterministic way, the labels_raw.pkl
+    DataFrame can be copy pasted with small alterations and concatonated
+    """
+    df = pd.read_pickle("{}/labels_raw.pkl".format(labels_prefix))
+    df.to_pickle("{}/labels.pkl".format(labels_prefix))
+                     
+
+def train_test_split(labels_prefix=WORKING_PREFIX, test_size=0.25, seed=42, shuffle=True):
+    """
+    Create a file called splits.npz containing train_idx and test_idx
+    where test_size indicates the proportion of the set to use for
+    testing.
+    """
+    np.random.seed(seed)
+    df = pd.read_pickle("{}/labels_raw.pkl".format(labels_prefix))
+    nr_obs = df.shape[0]
+    size = int(nr_obs * test_size)
+    test_idx = np.random.choice(nr_obs, size, replace=False)
+    train_idx = np.array(list(set(range(nr_obs)).symmetric_difference(set(test_idx))))
+    if shuffle:
+        np.random.shuffle(test_idx)
+        np.random.shuffle(train_idx)
+    file_name = '{}/{}.npz'.format(labels_prefix, 'splits')
+    np.savez_compressed(file_name, train_idx=train_idx, test_idx=test_idx)
+    
+
 if __name__ == "__main__":
     print("Performing initial data import")
     print("This expects data to have been downloaded as described in the README")
     load_all_data()
+    make_labels()
+    train_test_split()
     
 #     # Example of how to import a new datasource ('msd') without recreating old chunks
 #     ## get chunk number to start on i.e. the last chunk number +1
