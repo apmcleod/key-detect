@@ -73,8 +73,35 @@ def chunks(iterable, chunk_size):
     for ii in range(0, len(iterable), chunk_size):
         yield iterable[ii : ii+chunk_size]
 
+        
+def validate_dir(path):
+    """
+    Checks whether a directory for writing to exists and queries 
+    whether it should be deleted. Warns that files inside will be
+    overwritten. This is used for the chunk directories.
+    """
+    if not os.path.exists(path):
+        print('Creating directory for chunks: {}'.format(path))
+        os.makedirs(path)
+    else:
+        print('Chunk directory exists {}.'.format(path))
+        clear = input('Shall I clean it (y/n)? >')
+        if clear == 'y':
+            print('Cleaning chunk dir')
+            shutil.rmtree(path)
+            os.makedirs(path)
+        else:
+            print('WARNING: Overwriting old chunks (will not delete old chunks > max chunk nr)')
+        print('Chunks will be saved in: {}'.format(path))
 
-def load_all_data(chunk_size=CHUNK_SIZE, max_records=None):
+
+def load_all_data(chunk_size=CHUNK_SIZE, 
+                  max_records=None,
+                  datasets=['gtzan', 'giant', 'msd'],
+                  chunk_start_nr=0,
+                  validate_chunk_dir=True,
+                  chunk_prefix=CHUNK_PREFIX,
+                  labels_prefix=WORKING_PREFIX):
     """
     Custom function which imports all data. Stores each music track as a wave vector of
     size D = FS*LENGTH within a matrix. Since data are large, data are split into chunks
@@ -90,7 +117,22 @@ def load_all_data(chunk_size=CHUNK_SIZE, max_records=None):
 
     max_records : int
         For testing - max records to import
+    
+    datasets : list of str
+        list of datasets to import by name (order defined in function)
         
+    chunk_start_nr : int
+        a chunk number to start at
+    
+    validate_chunk_dir : bool
+        whether to warn about the chunk directory
+    
+    chunk_prefix : str
+        directory to save chunks to
+        
+    labels_prefix : str
+        directory to save labels to
+    
     Returns
     -------
     None
@@ -98,31 +140,74 @@ def load_all_data(chunk_size=CHUNK_SIZE, max_records=None):
         (zipped numpy arrays) and '{}/labels_raw.pkl'.format(CHUNK_LOC) (a pickled pandas DataFrame)
 
     """
-    # dataset, genre, key, key_str, majmin, raw, key_shift, time_shift
-    labels_gtzan = pd.DataFrame()
+    if validate_chunk_dir:
+        validate_dir(chunk_prefix)
     
-    if not os.path.exists(CHUNK_PREFIX):
-        print('Creating directory for chunks: {}'.format(CHUNK_PREFIX))
-        os.makedirs(CHUNK_PREFIX)
-    else:
-        print('Chunk directory exists {}.'.format(CHUNK_PREFIX))
-        clear = input('Shall I clean it (y/n)? >')
-        if clear == 'y':
-            print('Cleaning chunk dir')
-            shutil.rmtree(CHUNK_PREFIX)
-            os.makedirs(CHUNK_PREFIX)
-        else:
-            print('WARNING: Overwriting old chunks (will not delete old chunks > max chunk nr)')
-        print('Chunks will be saved in: {}'.format(CHUNK_PREFIX))
+    curr_chunk_nr = chunk_start_nr
     
     # Import GTZAN Data =======
+    if 'gtzan' in datasets:
+        labels_gtzan, curr_chunk_nr = load_gtzan_data(
+                chunk_start_nr=curr_chunk_nr,
+                chunk_size=chunk_size, 
+                max_records=max_records,
+                chunk_prefix=chunk_prefix,
+                labels_prefix=labels_prefix)
+    else:
+        labels_gtzan = pd.read_pickle("{}/labels_gtzan.pkl".format(labels_prefix))
+    
+    # Import giant-steps data =======
+    if 'giant' in datasets:
+        labels_giant, curr_chunk_nr = load_gtzan_data(
+                chunk_start_nr=curr_chunk_nr,
+                chunk_size=chunk_size, 
+                max_records=max_records,
+                chunk_prefix=chunk_prefix,
+                labels_prefix=labels_prefix)
+    else:
+        labels_giant = pd.read_pickle("{}/labels_giant.pkl".format(labels_prefix))
+    
+    # Import msd data =======
+    if 'msd' in datasets:
+        labels_msd, curr_chunk_nr = load_msd_data(
+                chunk_start_nr=curr_chunk_nr,
+                chunk_size=chunk_size, 
+                max_records=max_records,
+                chunk_prefix=chunk_prefix,
+                labels_prefix=labels_prefix)
+    else:
+        labels_msd = pd.read_pickle("{}/labels_msd.pkl".format(labels_prefix))
+    
+    # Labels =======
+    print('Writing labels')
+    print('Labels saved in: {}'.format(labels_prefix))
+    labels_raw = pd.concat([labels_gtzan, labels_giant, labels_msd], ignore_index=True)
+    labels_raw['key'] = labels_raw['key'].astype('int')
+    labels_raw.to_pickle('{}/labels_raw.pkl'.format(labels_prefix))
+    
+    print('FINISHED IMPORT!')
+    
+    
+def load_gtzan_data(chunk_start_nr,
+                    chunk_prefix,
+                    labels_prefix,
+                    chunk_size=CHUNK_SIZE, 
+                    max_records=None):
+    """
+    See load_all_data for more info. Split these into seperate functions
+    to allow for easier hacking of partial imports (and adding new data)
+    """
+    chunk_nr = chunk_start_nr
+    labels_gtzan = pd.DataFrame()
+    
     print('Processing GTZAN files {}'.format(20*'='))
     gtzan_pattern = os.path.join(GTZAN_META['DATA_PREFIX'], '**', '*'+GTZAN_META['DATA_SUFFIX'])
     # sorted important to preserve order
     file_list = sorted(glob(gtzan_pattern, recursive=True))
     if max_records is not None:
         file_list = file_list[:max_records]
-    for chunk_nr, files in enumerate(chunks(file_list, chunk_size)):
+    for cc, files in enumerate(chunks(file_list, chunk_size)):
+        chunk_nr = chunk_start_nr + cc
         delete_rows = []
         # use len(files) instead of chunk_size as last chunk will be smaller
         X_chunk = np.zeros((len(files), NUM_SAMPLES)) 
@@ -144,32 +229,54 @@ def load_all_data(chunk_size=CHUNK_SIZE, max_records=None):
                 key_str = keys.get_string_from_idx(key).replace('\t', ' '),
                 raw = 1,
                 key_shift = 0,
-                time_shift = 1.0
+                time_shift = 1.0,
+                chunk_nr = chunk_nr
             )
             labels_gtzan = labels_gtzan.append(file_labels, ignore_index=True)
             audio_data = read_audio_data(filepath, FS)
             audio_data = cut_or_pad_to_length(audio_data, NUM_SAMPLES)
             X_chunk[ii, :] = audio_data
         X_chunk = np.delete(X_chunk, delete_rows, axis=0)
-        file_name = '{}/{}.npz'.format(CHUNK_PREFIX, chunk_name)
+        file_name = '{}/{}.npz'.format(chunk_prefix, chunk_name)
         np.savez_compressed(file_name, X=X_chunk)
     labels_gtzan['majmin'] = ['major' if key < 12 else 'minor' for key in labels_gtzan['key']]
     labels_gtzan['dataset'] = 'GTZAN'
-    labels_gtzan.to_pickle('{}/labels_gtzan.pkl'.format(WORKING_PREFIX))
-      
-    # Import giant-steps data =======
+    labels_gtzan.to_pickle('{}/labels_gtzan.pkl'.format(labels_prefix))
+    return labels_gtzan, chunk_nr+1
+    
+
+def load_giant_data(chunk_start_nr,
+                    chunk_prefix,
+                    labels_prefix,
+                    chunk_size=CHUNK_SIZE, 
+                    max_records=None):
+    """
+    See load_all_data for more info. Split these into seperate functions
+    to allow for easier hacking of partial imports (and adding new data)
+    """
     print('Processing giant-steps files {}'.format(20*'='))
+    chunk_nr = chunk_start_nr
     labels_giant = pd.DataFrame()
-    
-    print('Writing labels')
-    print('Labels saved in: {}'.format(WORKING_PREFIX))
-    labels_raw = pd.concat([labels_gtzan, labels_giant], ignore_index=True)
-    labels_raw['key'] = labels_raw['key'].astype('int')
-    labels_raw.to_pickle('{}/labels_raw.pkl'.format(WORKING_PREFIX))
-    
-    print('FINISHED IMPORT!')
-    
-    
+#     return labels_gtzan, chunk_nr+1
+    return labels_giant, chunk_nr
+
+
+def load_msd_data(chunk_start_nr,
+                  chunk_prefix,
+                  labels_prefix,
+                  chunk_size=CHUNK_SIZE, 
+                  max_records=None):
+    """
+    See load_all_data for more info. Split these into seperate functions
+    to allow for easier hacking of partial imports (and adding new data)
+    """
+    print('Processing giant-steps files {}'.format(20*'='))
+    chunk_nr = chunk_start_nr
+    labels_msd = pd.DataFrame()
+#     return labels_gtzan, chunk_nr+1
+    return labels_msd, chunk_nr
+
+
 if __name__ == "__main__":
     print("Performing initial data import")
     print("This expects data to have been downloaded as described in the README")
