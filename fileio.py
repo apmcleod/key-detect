@@ -1,258 +1,168 @@
 import numpy as np
+import pandas as pd
 import librosa
 import os
+import shutil
 import random
 import math
 import keys
 from glob import glob
-import madmom.audio.chroma
 
 
-DATA_PREFIX = 'data/raw/'
-GTZAN_PREFIX = DATA_PREFIX + 'genres/'
-GTZAN_SUFFIX = '.au'
-KEY_FILE_PREFIX = DATA_PREFIX + 'gtzan_key-master/gtzan_key/genres/'
-KEY_FILE_SUFFIX = '.lerch.txt'
 
+DATA_PREFIX = 'data'
+RAW_PREFIX = '{}/raw'.format(DATA_PREFIX)
+WORKING_PREFIX = '{}/working'.format(DATA_PREFIX)
+CHUNK_PREFIX = '{}/chunks'.format(WORKING_PREFIX)
+
+CHUNK_SIZE = 250
 FS = 22050
 LENGTH = 30
 NUM_SAMPLES = FS * LENGTH
 
-GENRES = ['country', 'pop', 'hiphop', 'reggae', 'classical', 'jazz', 'rock', 'blues', 'disco', 'metal']
-GENRE_SIZES = [99, 94, 81, 97, 0, 79, 98, 98, 98, 93]
-TOTAL_SIZE_GTZAN = np.sum(GENRE_SIZES)
+GTZAN_META = dict(
+    DATA_PREFIX = RAW_PREFIX + '/genres',
+    DATA_SUFFIX = '.au',
+    LABEL_PREFIX = RAW_PREFIX + '/gtzan_key-master/gtzan_key/genres',
+    LABEL_SUFFIX = '.lerch.txt',
+    GENRES = ['country', 'pop', 'hiphop', 'reggae', 'classical', 'jazz', 'rock', 'blues', 'disco', 'metal'],
+    GENRE_SIZES = [99, 94, 81, 97, 0, 79, 98, 98, 98, 93],
+    TOTAL_SIZE = np.sum([99, 94, 81, 97, 0, 79, 98, 98, 98, 93])
+)
 
 
-
-
-
-def read_data(file):
-    # Input: file name (relative to 'genres') directory, do read data from
-    # Output: audio_data, y
-    #        audio_data = numpy array containing each sample's value as a float vector
-    #        y = normalized ground truth scoring vector for the given file *FROM get_vector_from_key method, above.
-    y = keys.get_vector_from_key(int(open(KEY_FILE_PREFIX + file + KEY_FILE_SUFFIX, 'r').read()))
-    y = np.reshape(y, (24, 1))
-    audio_data, _ = librosa.core.load(GTZAN_PREFIX + file + GTZAN_SUFFIX, sr=FS, mono=True)
-    audio_data = np.array(audio_data)
-    audio_data = np.reshape(audio_data, (len(audio_data), 1))
-    return audio_data, y
-
+def read_audio_data(filepath, fs):
+    """
+    Read audio data at a given rate from a given filepath
+    
+    Parameters
+    ----------
+    filepath : str
+        the full path to the file to read
+    fs : int
+        the samplerate to import the file at
+    """
+    audio_data, _ = librosa.core.load(filepath, sr=fs, mono=True)
+    return audio_data
 
 
 def cut_or_pad_to_length(vector, length):
     if vector.shape[0] != length:
         length_to_save = min(length, vector.shape[0])
-        new_vector = np.zeros((length, 1))
-        new_vector[:length_to_save, 0] = vector[:length_to_save, 0]
+        new_vector = np.zeros(length)
+        new_vector[:length_to_save] = vector[:length_to_save]
         return new_vector
+    else:
+        return vector
+
+
+def chunks(iterable, chunk_size):
+    """
+    Yield successive chunks from iterable
     
-    return vector
-
-
-
-def load_all_data(directory):
-    # Read all music files, and return them in arrays.
-    # Output: audio_data, keys
-    #        X = [num_samples, num_files] size matrix, containing the audio data, cut or padded with 0s to 30 seconds in length
-    #        Y = [24, num_files] size matrix, containing the key vect
-    file_list = [y for x in os.walk(directory) for y in glob(os.path.join(x[0], '*' + GTZAN_SUFFIX))]
+    Parameters
+    ----------
+    iterable : iterable
+        list of other iterable to chunk up
     
-    X = np.zeros((NUM_SAMPLES, 0))
-    Y = np.zeros((24, 0))
+    chunk_size : int
+        The number of items in each yeild
+    """
+    for ii in range(0, len(iterable), chunk_size):
+        yield iterable[ii : ii+chunk_size]
+
+
+def load_all_data(chunk_size=CHUNK_SIZE, max_records=None):
+    """
+    Custom function which imports all data. Stores each music track as a wave vector of
+    size D = FS*LENGTH within a matrix. Since data are large, data are split into chunks
+    of shape CHUNK_SIZE x D. Imported wave data chunks are stored in CHUNK_LOC.
     
-    file_num = 0
-    for file in file_list:
-        if file_num % 10 == 0:
-            print('Loading File ' + str(file_num) + '/' + str(len(file_list)))
-        file_num += 1
-        
-        _, file_name = file.split('genres/')
-        audio_data1, y1 = read_data(file_name[:-len(GTZAN_SUFFIX)])
-        
-        if np.sum(y1) == 0:
-            print('WARNING: key unknown/modulation, skipping: file=' + file_name)
-            continue
-        
-        audio_data1 = cut_or_pad_to_length(audio_data1, NUM_SAMPLES)
-        
-        X = np.append(X, audio_data1, axis=1)
-        
-        Y = np.append(Y, y1, axis=1)
-        
-    return X, Y
-
-
-
-def write_np_data(X, Y, prefix):
-    file_name = 'data/working/' + prefix + '.npz'
+    This function also creates the label data for the corresponding audio. The index of
+    each label corresponds to the (cumulative) index of the ordered chunks.
     
-    if not os.path.exists(os.path.dirname(file_name)):
-        os.makedirs(os.path.dirname(file_name))
+    Parameters
+    ----------
+    chunk_size : int
+        The number of tracks to be stored in each chunk (default: CHUNK_SIZE)
+
+    max_records : int
+        For testing - max records to import
         
-    np.savez_compressed(file_name, X=X, Y=Y)
+    Returns
+    -------
+    None
+        Saves wav data files to '{}/chunk{:04d}.npz'.format(CHUNK_LOC, chunk_nr)
+        (zipped numpy arrays) and '{}/labels_raw.pkl'.format(CHUNK_LOC) (a pickled pandas DataFrame)
 
-
-
-def load_np_data(prefix):
-    loaded = np.load('data/working/' + prefix + '.npz')
+    """
+    # dataset, genre, key, key_str, majmin, raw, key_shift, time_shift
+    labels_gtzan = pd.DataFrame()
     
-    return loaded['X'], loaded['Y']
-
-
-
-def process_data_into_np_files():
-    if not os.path.exists('data/working/splits'):
-        os.makedirs('data/working/splits')
-        
-    for genre in GENRES:
-        print(genre)
-        X, Y = load_all_data('data/raw/genres/' + genre)
-        write_np_data(X, Y, genre)
-
-
-
-def get_genre_and_song_idx_given_idx(idx, inclusive=True):
-    if idx >= TOTAL_SIZE:
-        if inclusive:
-            return len(GENRE_SIZES) - 1, GENRE_SIZES[-1] - 1
+    if not os.path.exists(CHUNK_PREFIX):
+        print('Creating directory for chunks: {}'.format(CHUNK_PREFIX))
+        os.makedirs(CHUNK_PREFIX)
+    else:
+        print('Chunk directory exists {}.'.format(CHUNK_PREFIX))
+        clear = input('Shall I clean it (y/n)? >')
+        if clear == 'y':
+            print('Cleaning chunk dir')
+            shutil.rmtree(CHUNK_PREFIX)
+            os.makedirs(CHUNK_PREFIX)
         else:
-            return len(GENRE_SIZES) - 1, GENRE_SIZES[-1]
-        
-    if idx <= 0:
-        return 0, 0
+            print('WARNING: Overwriting old chunks (will not delete old chunks > max chunk nr)')
+        print('Chunks will be saved in: {}'.format(CHUNK_PREFIX))
     
-    if not inclusive:
-        genre_idx, song_idx = get_genre_and_song_idx_given_idx(idx - 1)
-        return genre_idx, song_idx + 1
+    # Import GTZAN Data =======
+    print('Processing GTZAN files {}'.format(20*'='))
+    gtzan_pattern = os.path.join(GTZAN_META['DATA_PREFIX'], '**', '*'+GTZAN_META['DATA_SUFFIX'])
+    # sorted important to preserve order
+    file_list = sorted(glob(gtzan_pattern, recursive=True))
+    if max_records is not None:
+        file_list = file_list[:max_records]
+    for chunk_nr, files in enumerate(chunks(file_list, chunk_size)):
+        delete_rows = []
+        # use len(files) instead of chunk_size as last chunk will be smaller
+        X_chunk = np.zeros((len(files), NUM_SAMPLES)) 
+        chunk_name = 'chunk{:04d}'.format(chunk_nr)
+        print('Processing chunk {} (size {})'.format(chunk_nr, len(files)))
+        for ii, filepath in enumerate(files):
+            print('File {}/{}'.format(ii+1, len(files)), end="\r")
+            file_stub = filepath.split('genres/')[1][:-3]
+            label_path = os.path.join(GTZAN_META['LABEL_PREFIX'], file_stub+GTZAN_META['LABEL_SUFFIX'])
+            key = int(open(label_path).read())
+            if key == -1:
+                print('WARNING: key unknown/modulation, skipping {}'.format(filepath))
+                delete_rows += [ii]   
+                continue
+            file_labels = dict(
+                filepath = filepath,
+                genre = file_stub.split('/')[0],
+                key = key,
+                key_str = keys.get_string_from_idx(key).replace('\t', ' '),
+                raw = 1,
+                key_shift = 0,
+                time_shift = 1.0
+            )
+            labels_gtzan = labels_gtzan.append(file_labels, ignore_index=True)
+            audio_data = read_audio_data(filepath, FS)
+            audio_data = cut_or_pad_to_length(audio_data, NUM_SAMPLES)
+            X_chunk[ii, :] = audio_data
+        X_chunk = np.delete(X_chunk, delete_rows, axis=0)
+        file_name = '{}/{}.npz'.format(CHUNK_PREFIX, chunk_name)
+        np.savez_compressed(file_name, X=X_chunk)
+    labels_gtzan['majmin'] = ['major' if key < 12 else 'minor' for key in labels_gtzan['key']]
+    labels_gtzan['dataset'] = 'GTZAN'
+    labels_gtzan.to_pickle('{}/labels_gtzan.pkl'.format(WORKING_PREFIX))
+      
+    # Import giant-steps data =======
+    print('Processing giant-steps files {}'.format(20*'='))
+    labels_giant = pd.DataFrame()
     
-    for genre_idx in range(len(GENRES)):
-        genre_size = GENRE_SIZES[genre_idx]
-        genre_start_idx = int(np.sum(GENRE_SIZES[:genre_idx]))
-        
-        if genre_start_idx + genre_size > idx:
-            return genre_idx, idx - genre_start_idx
+    print('Writing labels')
+    print('Labels saved in: {}'.format(WORKING_PREFIX))
+    labels_raw = pd.concat([labels_gtzan, labels_giant], ignore_index=True)
+    labels_raw['key'] = labels_raw['key'].astype('int')
+    labels_raw.to_pickle('{}/labels_raw.pkl'.format(WORKING_PREFIX))
     
-    return len(GENRE_SIZES) - 1, GENRE_SIZES[-1]
-
-
-
-def load_from_range(from_idx=None, to_idx=None):
-    if from_idx is None:
-        from_idx = 0
-    if to_idx is None:
-        to_idx = TOTAL_SIZE
-    
-    # Load the sample from a given index (inclusive) to a given index (exclusive)
-    from_genre_idx, from_song_idx = get_genre_and_song_idx_given_idx(from_idx)
-    to_genre_idx, to_song_idx = get_genre_and_song_idx_given_idx(to_idx, inclusive=False)
-    
-    #print('loading from ' + str((from_genre_idx, from_song_idx)) + ' to ' + str((to_genre_idx, to_song_idx)))
-    
-    X = np.zeros((NUM_SAMPLES, 0))
-    Y = np.zeros((24, 0))
-    
-    for genre_idx in range(from_genre_idx, to_genre_idx + 1):
-        genre_X, genre_Y = load_np_data(GENRES[genre_idx])
-        
-        to = genre_X.shape[1]
-        if to_genre_idx == genre_idx:
-            to = to_song_idx
-        
-        X = np.append(X, genre_X[:, from_song_idx:to], axis=1)
-        Y = np.append(Y, genre_Y[:, from_song_idx:to], axis=1)
-        
-        from_song_idx = 0
-    
-    return X, Y
-
-
-
-def load_song_by_idx(idx):
-    return load_from_range(idx, idx + 1)
-
-
-
-
-def create_random_splits(split_size=32):
-    random.seed(1)
-    song_indexes = list(range(TOTAL_SIZE))
-    random.shuffle(song_indexes)
-
-    for split_num in range(math.ceil(TOTAL_SIZE / split_size)):
-        print('Making split ' + str(split_num) + '/' + str(TOTAL_SIZE // split_size))
-        X = np.zeros((NUM_SAMPLES, 0))
-        Y = np.zeros((24, 0))
-
-        for song_idx_idx in range(split_size * split_num, min(split_size * (split_num + 1), TOTAL_SIZE)):
-            if song_idx_idx % 10 == 0:
-                print('Loading song idx ' + str(song_idx_idx))
-            X_new, Y_new = load_song_by_idx(song_indexes[song_idx_idx])
-            X = np.append(X, X_new, axis=1)
-            Y = np.append(Y, Y_new, axis=1)
-
-        write_np_data(X, Y, 'splits/split_' + str(split_num))
-        
-    print('Done')
-
-
-
-def load_splits(indexes):
-    # Load the splits from the given indexes
-    X = np.zeros((NUM_SAMPLES, 0))
-    Y = np.zeros((24, 0))
-    
-    for idx in indexes:
-        X_new, Y_new = load_np_data('splits/split_' + str(idx))
-        
-        X = np.append(X, X_new, axis=1)
-        Y = np.append(Y, Y_new, axis=1)
-        
-    return X, Y
-
-
-def load_chroma_splits(indexes):
-    # Load the chroma splits from the given indexes
-    X = np.zeros((300, 12, 0))
-    Y = np.zeros((24, 0))
-    
-    for idx in indexes:
-        X_new, Y_new = load_np_data('chroma_splits/chroma_' + str(idx))
-        
-        X = np.append(X, X_new, axis=2)
-        Y = np.append(Y, Y_new, axis=1)
-        
-    return X, Y
-
-
-def generate_chroma_matrix_from_file(file):
-    dcp = madmom.audio.chroma.DeepChromaProcessor()
-    return dcp(file)
-
-
-def generate_chroma_matrix_from_vector(X):
-    librosa.output.write_wav('tmp.wav', np.reshape(X, -1), FS)
-    
-    chroma = generate_chroma_matrix_from_file('tmp.wav')
-    
-    os.remove('tmp.wav')
-    return chroma
-
-
-def generate_chroma_tensor_from_matrix(X):
-    chroma = np.zeros((300, 12, X.shape[1]))
-    
-    for column in range(X.shape[1]):
-        chroma[:, :, column] = generate_chroma_matrix_from_vector(X[:, column])
-        
-    return chroma
-
-
-def generate_chroma_splits_from_splits():
-    for split in range(27):
-        print('Generating from split ' + str(split) + '/26')
-        X, Y = load_splits([split])
-        X = generate_chroma_tensor_from_matrix(X)
-        
-        write_np_data(X, Y, 'chroma_splits/chroma_' + str(split))
-        
+    print('FINISHED IMPORT!')
