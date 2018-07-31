@@ -1,17 +1,19 @@
 # key-detect
 
+## Data
 
-GTZAN: http://marsyasweb.appspot.com/download/data_sets/
+### GTZAN
+GTZAN wav data: http://marsyasweb.appspot.com/download/data_sets/  
+GTZAN labels: https://github.com/alexanderlerch/gtzan_key  
+(we decided not to use GTZAN keys as labelling method seemed dodgey: http://visal.cs.cityu.edu.hk/downloads/#gtzankeys cite: Tom L.H. Li and Antoni B. Chan, In: Intl. Conference on MultiMedia Modeling (MMM), Taipei, Jan 2011.)  
 
-GTZAN keys: http://visal.cs.cityu.edu.hk/downloads/#gtzankeys
-
-cite: Tom L.H. Li and Antoni B. Chan, In: Intl. Conference on MultiMedia Modeling (MMM), Taipei, Jan 2011.
-
-GTZAN keys alternate: https://github.com/alexanderlerch/gtzan_key
-
+### GiantSteps
 GiantStepsKey (electronic music): https://github.com/GiantSteps/giantsteps-key-dataset
 
+
+## Notes
 https://www.dropbox.com/s/dnca94fnr5afmgb/Transposition%20mission.pdf?dl=0
+
 
 ## Installation
 ```
