@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import numpy as np
 import pandas as pd
 import librosa
@@ -166,3 +168,9 @@ def load_all_data(chunk_size=CHUNK_SIZE, max_records=None):
     labels_raw.to_pickle('{}/labels_raw.pkl'.format(WORKING_PREFIX))
     
     print('FINISHED IMPORT!')
+    
+    
+if __name__ == "__main__":
+    print("Performing initial data import")
+    print("This expects data to have been downloaded as described in the README")
+    load_all_data()

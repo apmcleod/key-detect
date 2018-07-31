@@ -29,7 +29,7 @@ conda install -c conda-forge librosa
 pip install madmom
 ```
 
-### Data
+### Data Download
 ```
 # creates ./genres - the gtzan data
 cd data/raw
@@ -53,3 +53,8 @@ tar -xzf millionsongsubset_full.tar.gz
 # creates MillionSongSubset
 ```
 
+### Preprocessing pipeline
+```
+conda activate key
+./fileio.py
+```
