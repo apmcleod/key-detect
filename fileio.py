@@ -33,9 +33,22 @@ GTZAN_META = dict(
 )
 
 GIANT_META = dict(
+    NAME = 'giant',
+    OUTFILE = 'labels_giant',
     DATA_PREFIX = RAW_PREFIX + '/giantsteps-key-dataset-master/audio',
     DATA_SUFFIX = '.LOFI.mp3',
     LABEL_PREFIX = RAW_PREFIX + '/giantsteps-key-dataset-master/annotations/key',
+    LABEL_SUFFIX = '.LOFI.key',
+    GENRE_PREFIX = RAW_PREFIX + '/giantsteps-key-dataset-master/annotations/genre',
+    GENRE_SUFFIX = '.LOFI.genre'
+)
+
+GIANT_MTG_META = dict(
+    NAME = 'giant_mtg',
+    OUTFILE = 'labels_giant_mtg',
+    DATA_PREFIX = RAW_PREFIX + '/giantsteps-mtg-key-dataset-master/audio',
+    DATA_SUFFIX = '.LOFI.mp3',
+    LABEL_PREFIX = RAW_PREFIX + '/giantsteps-mtg-key-dataset-master/annotations/key',
     LABEL_SUFFIX = '.LOFI.key',
     GENRE_PREFIX = RAW_PREFIX + '/giantsteps-key-dataset-master/annotations/genre',
     GENRE_SUFFIX = '.LOFI.genre'
@@ -114,7 +127,7 @@ def validate_dir(path):
 
 def load_all_data(chunk_size=CHUNK_SIZE, 
                   max_records=None,
-                  datasets=['gtzan', 'giant', 'msd'],
+                  datasets=['gtzan', 'giant', 'giant_mtg', 'msd'],
                   chunk_start_nr=0,
                   validate_chunk_dir=True,
                   chunk_prefix=CHUNK_PREFIX,
@@ -173,7 +186,7 @@ def load_all_data(chunk_size=CHUNK_SIZE,
     else:
         labels_gtzan = pd.read_pickle("{}/labels_gtzan.pkl".format(labels_prefix))
     
-    # Import giant-steps data =======
+    # Import giantsteps data =======
     if 'giant' in datasets:
         labels_giant, curr_chunk_nr = load_giant_data(
                 chunk_start_nr=curr_chunk_nr,
@@ -183,6 +196,19 @@ def load_all_data(chunk_size=CHUNK_SIZE,
                 labels_prefix=labels_prefix)
     else:
         labels_giant = pd.read_pickle("{}/labels_giant.pkl".format(labels_prefix))
+        
+    # Import giantsteps-mtg data =======
+    if 'giant_mtg' in datasets:
+        labels_giant, curr_chunk_nr = load_giant_data(
+                chunk_start_nr=curr_chunk_nr,
+                chunk_size=chunk_size, 
+                max_records=max_records,
+                chunk_prefix=chunk_prefix,
+                labels_prefix=labels_prefix,
+                mtg=True)
+    else:
+        labels_giant_mtg = pd.read_pickle("{}/labels_giant_mtg.pkl".format(labels_prefix))
+    
     
     # Import msd data =======
     if 'msd' in datasets:
@@ -198,7 +224,7 @@ def load_all_data(chunk_size=CHUNK_SIZE,
     # Labels =======
     print('Writing labels')
     print('Labels saved in: {}'.format(labels_prefix))
-    labels_raw = pd.concat([labels_gtzan, labels_giant, labels_msd], ignore_index=True)
+    labels_raw = pd.concat([labels_gtzan, labels_giant, labels_giant_mtg, labels_msd], ignore_index=True)
     for col in ['key', 'chunk_idx', 'chunk_nr']:
         labels_raw[col] = labels_raw[col].astype('int')
     labels_raw.to_pickle('{}/labels_raw.pkl'.format(labels_prefix))
@@ -270,7 +296,8 @@ def load_giant_data(chunk_start_nr,
                     chunk_prefix,
                     labels_prefix,
                     chunk_size=CHUNK_SIZE, 
-                    max_records=None):
+                    max_records=None,
+                    mtg=False):
     """
     See load_all_data for more info. Split these into seperate functions
     to allow for easier hacking of partial imports (and adding new data)
@@ -279,7 +306,10 @@ def load_giant_data(chunk_start_nr,
     
     chunk_nr = chunk_start_nr
     labels = pd.DataFrame()
-    meta = GIANT_META
+    if mtg:
+        meta = GIANT_MTG_META
+    else:
+        meta = GIANT_META
     
     pattern = os.path.join(meta['DATA_PREFIX'], '*'+meta['DATA_SUFFIX'])
     # sorted important to preserve order
@@ -324,8 +354,8 @@ def load_giant_data(chunk_start_nr,
         file_name = '{}/{}.npz'.format(chunk_prefix, chunk_name)
         np.savez_compressed(file_name, X=X_chunk)
     labels['majmin'] = ['major' if key < 12 else 'minor' for key in labels['key']]
-    labels['dataset'] = 'giant'
-    labels.to_pickle('{}/labels_giant.pkl'.format(labels_prefix))
+    labels['dataset'] = meta['NAME']
+    labels.to_pickle('{}/{}.pkl'.format(labels_prefix, meta['OUTFILE']))
     return labels, chunk_nr+1
 
 
