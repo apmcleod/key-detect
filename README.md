@@ -96,9 +96,10 @@ Y = np.load("{}/Y.npz".format(DATA_DIR))['Y']
 Y_train = Y[train_idx, :]
 Y_test = Y[test_idx, :]
 
-with np.load("{}/data_aug.npz".format(DATA_DIR)) as data:
-    X_aug = data['X']
-    Y_aug = data['Y']
-X_train = np.vstack(X_train, X_aug)
-Y_train = np.vstack(Y_train, Y_aug)
+## Uncomment when augmentation done
+#with np.load("{}/data_aug.npz".format(DATA_DIR)) as data:
+#    X_aug = data['X']
+#    Y_aug = data['Y']
+#X_train = np.vstack(X_train, X_aug)
+#Y_train = np.vstack(Y_train, Y_aug)
 ```
