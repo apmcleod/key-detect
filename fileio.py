@@ -259,6 +259,7 @@ def load_gtzan_data(chunk_start_nr,
         X_chunk = np.zeros((len(files), NUM_SAMPLES)) 
         chunk_name = 'chunk{:04d}'.format(chunk_nr)
         print('Processing chunk {} (size {})'.format(chunk_nr, len(files)))
+        chunk_idx = 0
         for ii, filepath in enumerate(files):
             print('File {}/{}'.format(ii+1, len(files)), end="\r")
             file_stub = filepath.split('genres/')[1][:-3]
@@ -277,8 +278,9 @@ def load_gtzan_data(chunk_start_nr,
                 key_shift = 0,
                 time_shift = 1.0,
                 chunk_nr = chunk_nr,
-                chunk_idx = ii
+                chunk_idx = chunk_idx
             )
+            chunk_idx += 1
             labels = labels.append(file_labels, ignore_index=True)
             audio_data = read_audio_data(filepath, FS)
             audio_data = cut_or_pad_to_length(audio_data, NUM_SAMPLES)
@@ -323,6 +325,7 @@ def load_giant_data(chunk_start_nr,
         X_chunk = np.zeros((len(files), NUM_SAMPLES)) 
         chunk_name = 'chunk{:04d}'.format(chunk_nr)
         print('Processing chunk {} (size {})'.format(chunk_nr, len(files)))
+        chunk_idx = 0
         for ii, filepath in enumerate(files):
             print('File {}/{}'.format(ii+1, len(files)), end="\r")
             file_stub = filepath.rsplit('/', 1)[1].split('.', 1)[0]
@@ -330,7 +333,7 @@ def load_giant_data(chunk_start_nr,
             key_str = open(label_path).read().split('\t')[0]  # mtg changed the format >_<
             if key_str not in keys.KEY_DICT.keys():
                 print('WARNING: invalid key [{}], skipping {}'.format(key_str, filepath))
-                delete_rows += [ii]   
+                delete_rows += [ii]
                 continue
             key = keys.KEY_DICT[key_str]
             genre_path = os.path.join(meta['GENRE_PREFIX'], file_stub+meta['GENRE_SUFFIX'])
@@ -344,8 +347,9 @@ def load_giant_data(chunk_start_nr,
                 key_shift = 0,
                 time_shift = 1.0,
                 chunk_nr = chunk_nr,
-                chunk_idx = ii
+                chunk_idx = chunk_idx
             )
+            chunk_idx += 1
             labels = labels.append(file_labels, ignore_index=True)
             audio_data = read_audio_data(filepath, FS)
             audio_data = cut_or_pad_to_length(audio_data, NUM_SAMPLES)
@@ -405,12 +409,24 @@ def train_test_split(labels_prefix=WORKING_PREFIX, test_size=0.25, seed=42, shuf
     np.savez_compressed(file_name, train_idx=train_idx, test_idx=test_idx)
     
 
+def make_Y(labels_prefix=WORKING_PREFIX):
+    """
+    Creates the vectorised labels for training
+    """
+    df = pd.read_pickle("{}/labels_raw.pkl".format(labels_prefix))
+    y = df['key']
+    Y = np.array([keys.get_vector_from_key(kk) for kk in y])
+    file_name = '{}/{}.npz'.format(labels_prefix, 'Y')
+    np.savez_compressed(file_name, Y=Y) 
+
+
 if __name__ == "__main__":
     print("Performing initial data import")
     print("This expects data to have been downloaded as described in the README")
     load_all_data()
     make_labels()
     train_test_split()
+    make_Y()
     
 #     # Example of how to import a new datasource ('msd') without recreating old chunks
 #     ## get chunk number to start on i.e. the last chunk number +1
