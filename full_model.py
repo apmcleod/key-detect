@@ -60,6 +60,53 @@ class ReproductionNet(nn.Module):
         
         return F.softmax(self.fc1(x), dim=1)
 
+
+class ConvNet(nn.Module):
+    
+    def __init__(self):
+        super(ConvNet, self).__init__()
+        
+        self.conv1 = nn.Conv2d(1, 5, (24, 5), stride=(2, 1))
+        self.conv2 = nn.Conv2d(5, 1, (12, 20), stride=(1, 10))
+        
+        self.fc1 = nn.Linear(50 * 13, 50)
+        self.fc2 = nn.Linear(50, 24)
+        
+    def forward(self, x):
+        x = x.unsqueeze(1)
+        x = F.elu(self.conv1(x))
+        x = F.elu(self.conv2(x))
+        x = x.view(-1, 50 * 13)
+        x = F.elu(self.fc1(x))
+        return F.softmax(self.fc2(x), dim=1)
+    
+    
+class ConvLstm(nn.Module):
+    def __init__(self):
+        super(ConvLstm, self).__init__()
+        self.conv = nn.Conv1d(144, 24, 10, stride=5)
+        self.lstm = nn.LSTM(input_size=24, hidden_size=24, batch_first=True)
+        
+    def forward(self, x):
+        x = F.elu(self.conv(x))
+        x = x.transpose(1, 2)
+        x = self.lstm(x)[0][:, -1, :].squeeze()
+        return F.softmax(x, dim=1)
+    
+    
+
+class ConvPlusOne(nn.Module):
+    def __init__(self):
+        super(ConvPlusOne, self).__init__()
+        self.conv1 = nn.Conv1d(144, 24, 3, padding=1)
+        self.fc1 = nn.Linear(24, 24)
+        
+    def forward(self, x):
+        x = F.avg_pool1d(F.elu(self.conv1(x)), 151)
+        x = x.view(-1, 24)
+        x = F.elu(self.fc1(x))
+        return F.softmax(x, dim=1)
+    
     
 class ShallowConvNet(nn.Module):
     
@@ -68,6 +115,6 @@ class ShallowConvNet(nn.Module):
         self.conv1 = nn.Conv1d(144, 24, 1)
         
     def forward(self, x):
-        x = F.avg_pool1d(F.relu(self.conv1(x)), 151)
+        x = F.avg_pool1d(F.elu(self.conv1(x)), 151)
         x = x.view(-1, 24)
         return F.softmax(x, dim=1)
