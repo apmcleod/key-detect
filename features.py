@@ -6,9 +6,15 @@ from glob import glob
 
 
 def cqt():
+    print('Creating cqt features from chunked audio')
+    
     X_cqt = np.zeros((0, 144, fileio.LENGTH * 5 + 1))
-
-    for chunk in sorted(glob('{}/*.npz'.format(fileio.CHUNK_PREFIX), recursive=True)):
+    
+    chunk_files = sorted(glob('{}/*.npz'.format(fileio.CHUNK_PREFIX), recursive=True))
+    nr_chunks = len(chunk_files)
+    
+    for ii, chunk in enumerate(chunk_files):
+        print('Processing chunk {}/{}'.format(ii+1, nr_chunks), end='\r')
         X = np.load(chunk)['X']
 
         # Data aug would be here, but too slow:
