@@ -9,6 +9,6 @@ do
     b=$(basename $file)
     for pitch in $PITCHES
     do
-        sox $file $TMP/$b.$pitch pitch $pitch
+        sox $file $TMP/$b.$pitch.wav pitch $pitch
     done
 done

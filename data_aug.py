@@ -7,9 +7,12 @@ import subprocess
 import math
 import shutil
 import features
+import os
+import keys
+import time
 
 
-SOX_PITCH_STRING = '"-400 -300 -200 -100 100 200 300 400 500 600 700"'
+SOX_PITCH_STRING = ' -400 -300 -200 -100 100 200 300 400 500 600 700 '
 TMP_DATA = '{}/tmp'.format(fileio.DATA_PREFIX)
 
 def augment_train(labels_prefix=fileio.WORKING_PREFIX, batch_size=50):
@@ -26,37 +29,54 @@ def augment_train(labels_prefix=fileio.WORKING_PREFIX, batch_size=50):
     Y_aug = np.zeros((0, 24))
     
     for idx in range(num_batches):
-        print("Augmenting batch {}/{}".format(idx, num_batches))
-        shutil.rmtree(TMP_DATA)
+        print("Augmenting batch {}/{}".format(idx, num_batches - 1))
+        if os.path.exists(TMP_DATA):
+            shutil.rmtree(TMP_DATA)
         os.makedirs(TMP_DATA)
         
         bottom = idx * batch_size
         top = min((idx + 1) * batch_size, len(train_idx))
         
         files = filepaths[bottom : top]
-        keys = all_keys[bottom : top]
         
-        file_list = '"' + ' '.join(files) + '"'
-        subprocess.call('./augment.sh {} {} {}'.format(TMP_DATA, file_list, SOX_PITCH_STRING))
-        
+        # Convert all mp3s to wavs
+        print("Converting mp3s to wavs")
         for file_idx, file in enumerate(files):
-            orig_key = keys[file_idx]
+            if file.endswith('.mp3'):
+                print('Converting ' + file)
+                audio_data = fileio.read_audio_data(file, fileio.FS)
+                t = time.time()
+                tmp_name = '{}/{}.wav'.format(TMP_DATA, t)
+                librosa.output.write_wav(tmp_name, audio_data, fileio.FS)
+                files[file_idx] = tmp_name
+        
+        train_keys = all_keys[bottom : top]
+        
+        file_list = ' ' + ' '.join(files) + ' '
+        print("Calling sox")
+        subprocess.call(['./augment.sh', TMP_DATA, file_list, SOX_PITCH_STRING])
+        
+        print("Reading outputs and calculating cqts")
+        for file_idx, file in enumerate(files):
+            file = os.path.basename(file)
+            orig_key = train_keys[file_idx]
             
             for key_shift in [-4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 7]:
-                shifted_filename = '{}.{}00'
+                shifted_filename = '{}/{}.{}00.wav'.format(TMP_DATA, file, key_shift)
                 shifted_key = keys.shift(orig_key, key_shift)
+                
                 shifted_audio_data = fileio.cut_or_pad_to_length(
-                    fileio.NUM_SAMPLES, fileio.read_audio_data(shifted_filename, fileio.FS))
+                    fileio.read_audio_data(shifted_filename, fileio.FS), fileio.NUM_SAMPLES)
                 
                 cqt = features.get_cqt(shifted_audio_data)
                 X_aug = np.concatenate((X_aug, cqt.reshape(1, cqt.shape[0], cqt.shape[1])), axis=0)
-                Y_aug = np.concatenate((Y_aug, keys.get_vector_from_key(shifted_key)), axis=0)
+                Y_aug = np.concatenate((Y_aug, keys.get_vector_from_key(shifted_key).reshape(1, 24)), axis=0)
                 
     shutil.rmtree(TMP_DATA)
     
     X_aug = np.log(X_aug + features.EPS)
     
-    np.savez_compressed('{}/data_aug.npz'.format(labels_prefix), X=X_aug, Y=Y_aug
+    np.savez_compressed('{}/data_aug.npz'.format(labels_prefix), X=X_aug, Y=Y_aug)
 
 
 

@@ -54,3 +54,11 @@ def generate_one_hot_guess(vector):
 
 def generate_one_hot_matrix(matrix):
     return np.argmax(matrix, axis=0)
+
+def shift(key, shift):
+    maj = key // 12
+    num = key % 12
+    
+    num = (num + shift + 12) % 12
+    
+    return num + maj * 12
