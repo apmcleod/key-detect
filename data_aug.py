@@ -12,12 +12,13 @@ import features
 import os
 import keys
 import time
+import sys
 
 
 SOX_PITCH_STRING = ' -400 -300 -200 -100 100 200 300 400 500 600 700 '
 TMP_DATA = '{}/tmp'.format(fileio.DATA_PREFIX)
 
-def augment_train(labels_prefix=fileio.WORKING_PREFIX, batch_size=50):
+def augment_train(labels_prefix=fileio.WORKING_PREFIX, batch_size=50, batch_start=0):
     file_name = '{}/{}.npz'.format(labels_prefix, 'splits')
     train_idx = np.load(file_name)['train_idx']
 
@@ -27,11 +28,12 @@ def augment_train(labels_prefix=fileio.WORKING_PREFIX, batch_size=50):
 
     num_batches = math.ceil(len(train_idx) / batch_size)
 
-    X_aug = np.zeros((0, 144, fileio.LENGTH * 5 + 1))
-    Y_aug = np.zeros((0, 24))
-
-    for idx in range(num_batches):
+    for idx in range(batch_start, num_batches):
         print("Augmenting batch {}/{}".format(idx, num_batches - 1))
+        
+        X_aug = np.zeros((0, 144, fileio.LENGTH * 5 + 1))
+        Y_aug = np.zeros((0, 24))
+        
         if os.path.exists(TMP_DATA):
             shutil.rmtree(TMP_DATA)
         os.makedirs(TMP_DATA)
@@ -45,7 +47,6 @@ def augment_train(labels_prefix=fileio.WORKING_PREFIX, batch_size=50):
         print("Converting mp3s to wavs")
         for file_idx, file in enumerate(files):
             if file.endswith('.mp3'):
-                print('Converting ' + file)
                 audio_data = fileio.read_audio_data(file, fileio.FS)
                 t = time.time()
                 tmp_name = '{}/{}.wav'.format(TMP_DATA, t)
@@ -73,12 +74,32 @@ def augment_train(labels_prefix=fileio.WORKING_PREFIX, batch_size=50):
                 cqt = features.get_cqt(shifted_audio_data)
                 X_aug = np.concatenate((X_aug, cqt.reshape(1, cqt.shape[0], cqt.shape[1])), axis=0)
                 Y_aug = np.concatenate((Y_aug, keys.get_vector_from_key(shifted_key).reshape(1, 24)), axis=0)
+                
+        np.savez_compressed('{}/data_aug_{}.npz'.format(labels_prefix, idx), X=np.log(X_aug + features.EPS), Y=Y_aug)
 
-    shutil.rmtree(TMP_DATA)
-
-    X_aug = np.log(X_aug + features.EPS)
-
+    if os.path.exists(TMP_DATA):
+        shutil.rmtree(TMP_DATA)
+    
+    print('Joining all batch files')
+    X_aug = np.zeros((0, 144, fileio.LENGTH * 5 + 1))
+    Y_aug = np.zeros((0, 24))
+    
+    for idx in range(num_batches):
+        file = '{}/data_aug_{}.npz'.format(labels_prefix, idx)
+        if os.path.isfile(file):
+            augmented = np.load('{}/data_aug_{}.npz'.format(labels_prefix, idx))
+            X_aug = np.concatenate((X_aug, augmented['X']), axis=0)
+            Y_aug = np.concatenate((Y_aug, augmented['Y']), axis=0)
+        else:
+            print('WARNING: {} not found. Skipping.'.format(file))
+        
+    print('Writing augmented file and cleaning augmented batches')
+    
     np.savez_compressed('{}/data_aug.npz'.format(labels_prefix), X=X_aug, Y=Y_aug)
+    
+    for idx in range(num_batches):
+        if os.path.isfile('{}/data_aug_{}.npz'.format(labels_prefix, idx)):
+            os.remove('{}/data_aug_{}.npz'.format(labels_prefix, idx))
 
 
 
@@ -136,7 +157,11 @@ def pitch_and_tempo_shift(stft, rate, resample_rate):
 
 if __name__ == '__main__':
     print('Augmenting training data')
-    augment_train()
+    if len(sys.argv) > 1:
+        print('Starting at batch {}'.format(sys.argv[1]))
+        augment_train(batch_start=int(sys.argv[1]))
+    else:
+        augment_train()
     print('Augmentations saved at {}/data_aug.npz'.format(fileio.WORKING_PREFIX))
     print('AUGMENTATION COMPLETE!')
 
