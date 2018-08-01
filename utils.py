@@ -43,3 +43,14 @@ def grouped_bar_chart(array, legend_labels=None, bar_labels=None,
     plt.xticks(pos, bar_labels)
     if legend:
         plt.legend()
+        
+
+def number_countplot(ax=None):
+    if ax is None:
+        ax = plt.gca()
+    for p in ax.patches:
+        height = p.get_height()
+        ax.text(p.get_x()+p.get_width()/2.,
+                height + 3,
+                '{:d}'.format(height),
+                ha="center") 
