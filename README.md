@@ -71,9 +71,7 @@ tar -xzf millionsongsubset_full.tar.gz
 conda activate key
 ./fileio.py
 ./features.py
-## Data Augmentation (not yet implemented)
-# ./pitch_shift.sh data "-400 -300 -200 -100 100 200 300 400 500 600 700"  # creates pitch shifted wavs
-# ./data_aug.py  # creates augmented training data by running fileio and features methods. Outputs
+./data_aug.py  # creates augmented training data by running fileio and features methods. Outputs
                  # data_aug.npz containing X_aug and Y_aug (based on splits.npz in and labels.pkl)
 ```
 
@@ -96,10 +94,9 @@ Y = np.load("{}/Y.npz".format(DATA_DIR))['Y']
 Y_train = Y[train_idx, :]
 Y_test = Y[test_idx, :]
 
-## Uncomment when augmentation done
-#with np.load("{}/data_aug.npz".format(DATA_DIR)) as data:
-#    X_aug = data['X']
-#    Y_aug = data['Y']
-#X_train = np.vstack(X_train, X_aug)
-#Y_train = np.vstack(Y_train, Y_aug)
+with np.load("{}/data_aug.npz".format(DATA_DIR)) as data:
+    X_aug = data['X']
+    Y_aug = data['Y']
+X_train = np.vstack(X_train, X_aug)
+Y_train = np.vstack(Y_train, Y_aug)
 ```
