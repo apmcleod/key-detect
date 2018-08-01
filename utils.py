@@ -1,0 +1,48 @@
+from IPython import display
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+def in_ipynb():
+    try:
+        cfg = get_ipython().config 
+        if cfg['IPKernelApp']['parent_appname'] == 'ipython-notebook':
+            return True
+        else:
+            return False
+    except NameError:
+        return False
+
+
+def play_from_label(label):
+    chunk_loc = './data/working/chunks'
+    fs = 22050
+    chunk_nr = label['chunk_nr']
+    X = np.load('{}/chunk{:04d}.npz'.format(chunk_loc, chunk_nr))['X']
+    idx = label['chunk_idx']
+    if in_ipynb():
+        display.display(display.Audio(X[idx], rate=fs))
+    else:
+        raise NotImplementedError
+
+
+def grouped_bar_chart(array, legend_labels=None, bar_labels=None,
+                      border_size=0.1, legend=True):
+    """
+    Plots a grouped bar chart where each row of input array contains the
+    values of consecutive bars.
+    """
+    nr_obs, nr_bars = array.shape
+    pos = np.arange(nr_bars)
+    if legend_labels is None:
+        legend_labels = np.arange(nr_obs)
+    if bar_labels is None:
+        bar_labels = np.arange(nr_bars)
+    bar_width = (1-border_size)/nr_obs
+    centre_offset = (nr_obs/2 - .5)*bar_width
+    for ii in range(nr_obs):
+        offset = bar_width*ii - centre_offset
+        plt.bar(pos+offset, array[ii], bar_width, label=legend_labels[ii])
+    plt.xticks(pos, bar_labels)
+    if legend:
+        plt.legend()
