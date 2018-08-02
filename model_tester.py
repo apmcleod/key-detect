@@ -5,7 +5,7 @@ import evaluation
 import torch.nn as nn
 import torch.optim as optim
 
-def train_model(X_train, Y_train, X_test, Y_test, net, batch_size=64, num_epochs=1000, lr=0.0001, device=torch.device("cpu")):
+def train_model(X_train, Y_train, X_test, Y_test, net, batch_size=64, num_epochs=1000, lr=0.0001, device=torch.device("cpu"), print_every=5):
     net.to(device)
     print(net)
     
@@ -41,7 +41,7 @@ def train_model(X_train, Y_train, X_test, Y_test, net, batch_size=64, num_epochs
             losses.append(loss.item() * X_batch.size()[0])
             scores.extend(evaluation.get_scores(Y_batch, np.argmax(Y_hat.data, axis=1)))
 
-        if epoch % 5 == 0:
+        if epoch % print_every == 0:
             print('epoch ' + str(epoch) + ' loss: ' + str(np.sum(losses) / X_train.size()[0]))
             print('Train accuracy = ' + str(np.mean(scores)))
             print('Test accuracy = ' + str(np.mean(evaluation.get_scores(Y_test, np.argmax(net(X_test).data, axis=1)))))
