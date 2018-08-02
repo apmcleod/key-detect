@@ -5,7 +5,7 @@ import torch.nn.functional as F
 class ReproductionNet(nn.Module):
     
     def __init__(self):
-        super(Net, self).__init__()
+        super(ReproductionNet, self).__init__()
         
         self.conv1 = nn.Conv2d(1, 8, 5, padding=2)
         self.conv2 = nn.Conv2d(8, 8, 5, padding=2)
@@ -15,48 +15,23 @@ class ReproductionNet(nn.Module):
         
         self.dense = nn.Conv2d(8, 48, (144, 1))
         
-        self.pool = nn.AvgPool2d((48, 1))
+        self.pool = nn.AvgPool2d((1, 151))
         
         self.fc1 = nn.Linear(48, 24)
         
     def forward(self, x):
-        print(x.size())
-        
-        x.unsqueeze_(1)
-        
-        print(x.size())
-        
+        x = x.unsqueeze(1)
         x = F.elu(self.conv1(x))
-        
-        print(x.size())
-        
         x = F.elu(self.conv2(x))
-        
-        print(x.size())
-        
         x = F.elu(self.conv3(x))
-        
-        print(x.size())
-        
         x = F.elu(self.conv4(x))
-        
-        print(x.size())
-        
         x = F.elu(self.conv5(x))
         
-        print(x.size())
-        
         x = F.elu(self.dense(x))
-        
-        print(x.size())
+        x = x.squeeze()
         
         x = F.elu(self.pool(x))
-        
-        print(x.size())
-        
         x = x.view(-1, 48)
-        
-        print(x.size())
         
         return F.softmax(self.fc1(x), dim=1)
 
@@ -84,7 +59,7 @@ class ConvNet(nn.Module):
 class ConvLstm(nn.Module):
     def __init__(self):
         super(ConvLstm, self).__init__()
-        self.conv = nn.Conv1d(144, 24, 10, stride=5)
+        self.conv = nn.Conv1d(144, 24, 20, stride=10)
         self.lstm = nn.LSTM(input_size=24, hidden_size=24, batch_first=True)
         
     def forward(self, x):
@@ -92,6 +67,22 @@ class ConvLstm(nn.Module):
         x = x.transpose(1, 2)
         x = self.lstm(x)[0][:, -1, :].squeeze()
         return F.softmax(x, dim=1)
+    
+    
+class ConvBiLstm(nn.Module):
+    def __init__(self):
+        super(ConvBiLstm, self).__init__()
+        self.conv = nn.Conv1d(144, 24, 20, stride=5)
+        self.lstm = nn.LSTM(input_size=24, hidden_size=24, batch_first=True, num_layers=2, bidirectional=True)
+        self.fc = nn.Linear(48, 24)
+        
+    def forward(self, x):
+        x = F.elu(self.conv(x))
+        x = x.transpose(1, 2)
+        x = self.lstm(x)[0].transpose(1, 2)
+        x = F.avg_pool1d(x, x.size()[2])
+        x = x.squeeze()
+        return F.softmax(self.fc(x), dim=1)
     
     
 
