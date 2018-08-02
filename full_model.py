@@ -72,17 +72,46 @@ class ConvLstm(nn.Module):
 class ConvBiLstm(nn.Module):
     def __init__(self):
         super(ConvBiLstm, self).__init__()
-        self.conv = nn.Conv1d(144, 24, 20, stride=5)
-        self.lstm = nn.LSTM(input_size=24, hidden_size=24, batch_first=True, num_layers=2, bidirectional=True)
-        self.fc = nn.Linear(48, 24)
+        # Convs, standard
+        self.conv1 = nn.Conv2d(1, 10, 5, padding=2)
+        self.conv2 = nn.Conv2d(10, 10, 5, padding=2)
+        self.conv3 = nn.Conv2d(10, 10, 10, stride=2, padding=4)
+        
+        # Flatten each frame into 48-length vector
+        self.dense = nn.Conv2d(10, 48, (72, 1))
+        
+        # bi-rnn in time
+        self.lstm = nn.GRU(input_size=48, hidden_size=48, batch_first=True, num_layers=2, bidirectional=True)
+        
+        # Pool bi-rnn outputs across frames w/ 10 convolutions
+        self.conv_pool = nn.Conv2d(1, 10, (1, 75))
+        
+        # Linear
+        self.fc1 = nn.Linear(96, 48)
+        self.fc3 = nn.Linear(48, 24)
         
     def forward(self, x):
-        x = F.elu(self.conv(x))
+        x = x.unsqueeze(1)
+        x = F.elu(self.conv1(x))
+        x = F.elu(self.conv2(x))
+        x = F.elu(self.conv3(x))
+        
+        x = F.elu(self.dense(x))
+        
+        x = x.squeeze()
         x = x.transpose(1, 2)
         x = self.lstm(x)[0].transpose(1, 2)
-        x = F.avg_pool1d(x, x.size()[2])
+        
+        x = x.unsqueeze(1)
+        x = F.elu(self.conv_pool(x))
+        
+        # Take average of each conv's activation for each pitch
         x = x.squeeze()
-        return F.softmax(self.fc(x), dim=1)
+        x = F.max_pool1d(x.transpose(1, 2), 10)
+        x = x.squeeze()
+        
+        x = F.elu(self.fc1(x))
+        return F.softmax(self.fc3(x), dim=1)
     
     
 
