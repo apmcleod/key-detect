@@ -16,6 +16,7 @@ DATA_PREFIX = 'data'
 RAW_PREFIX = '{}/raw'.format(DATA_PREFIX)
 WORKING_PREFIX = '{}/working'.format(DATA_PREFIX)
 CHUNK_PREFIX = '{}/chunks'.format(WORKING_PREFIX)
+OUTPUT_PREFIX = '{}/output'.format(DATA_PREFIX)
 
 CHUNK_SIZE = 100
 FS = 22050
