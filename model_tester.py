@@ -8,11 +8,16 @@ import shutil
 import os
 import fileio
 
-def train_model(X_train, Y_train, X_test, Y_test, net, batch_size=64, num_epochs=100,
+def train_model(X_train, Y_train, X_test, Y_test, NetClass, batch_size=64, num_epochs=100,
                 lr=0.0001, weight_decay=0,
-                device=torch.device("cpu"), print_every=1,
-                save_every=10, resume=None):
+                device=torch.device("cpu"), seed=None,
+                print_every=1, save_every=10, resume=None):
     
+    if seed:
+        torch.manual_seed(seed)
+        np.random.seed(seed)
+    
+    net = NetClass()
     net.to(device)
     
     X_test = X_test.to(device)
