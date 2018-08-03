@@ -5,13 +5,19 @@ import evaluation
 import torch.nn as nn
 import torch.optim as optim
 
-def train_model(X_train, Y_train, X_test, Y_test, net, batch_size=64, num_epochs=1000, lr=0.0001):
+def train_model(X_train, Y_train, X_test, Y_test, net, batch_size=64, num_epochs=1000,
+                lr=0.0001, weight_decay=0,
+                device=torch.device("cpu"), print_every=5):
+    net.to(device)
     print(net)
+    
+    X_test = X_test.to(device)
+    Y_test = Y_test.to(device)
     
     num_batches = math.ceil(X_train.size()[0] / batch_size)
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(net.parameters(), lr=lr)
+    optimizer = optim.Adam(net.parameters(), lr=lr, weight_decay=weight_decay)
 
     for epoch in range(num_epochs):
 
@@ -21,8 +27,11 @@ def train_model(X_train, Y_train, X_test, Y_test, net, batch_size=64, num_epochs
         for batch_num in range(num_batches):
             bottom = batch_size * batch_num
             top = min(batch_size * (batch_num + 1), X_train.size()[0])
+            
             X_batch = X_train[bottom : top]
+            X_batch = X_batch.to(device)
             Y_batch = Y_train[bottom : top]
+            Y_batch = Y_batch.to(device)
 
             optimizer.zero_grad()
 
@@ -32,41 +41,11 @@ def train_model(X_train, Y_train, X_test, Y_test, net, batch_size=64, num_epochs
             optimizer.step()
 
             losses.append(loss.item() * X_batch.size()[0])
-            scores.extend(evaluation.get_scores(Y_batch.numpy(), np.argmax(Y_hat.data, axis=1).numpy()))
+            scores.extend(evaluation.get_scores(Y_batch, np.argmax(Y_hat.data, axis=1)))
 
-        if epoch % 5 == 0:
+        if epoch % print_every == 0:
             print('epoch ' + str(epoch) + ' loss: ' + str(np.sum(losses) / X_train.size()[0]))
             print('Train accuracy = ' + str(np.mean(scores)))
-            print('Test accuracy = ' + str(np.mean(evaluation.get_scores(Y_test.numpy(), np.argmax(net(X_test).data, axis=1).numpy()))))
+            print('Test accuracy = ' + str(np.mean(evaluation.get_scores(Y_test, np.argmax(net(X_test).data, axis=1)))))
 
     print('Done')
-    
-    
-    
-'''
-Call like:
-
-DATA_DIR = './data/working'
-
-labels = pd.read_pickle("{}/labels.pkl".format(DATA_DIR))
-
-with np.load("{}/splits.npz".format(DATA_DIR)) as splits:
-    train_idx = splits['train_idx']
-    test_idx = splits['test_idx']
-
-X = np.load("{}/X_cqt.npz".format(DATA_DIR))['X']
-X_train = X[train_idx, :]
-X_test = X[test_idx, :]
-
-Y = np.load("{}/Y.npz".format(DATA_DIR))['Y']
-Y_train = Y[train_idx, :]
-Y_test = Y[test_idx, :]
-
-X_train = torch.from_numpy(X_train).float()
-X_test = torch.from_numpy(X_test).float()
-
-Y_train = torch.from_numpy(np.argmax(Y_train, axis=1))
-Y_test = torch.from_numpy(np.argmax(Y_test, axis=1))
-
-model_tester.train_model(X_train, Y_train, X_test, Y_test, full_model.ConvLstm())
-'''
