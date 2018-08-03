@@ -5,7 +5,9 @@ import evaluation
 import torch.nn as nn
 import torch.optim as optim
 
-def train_model(X_train, Y_train, X_test, Y_test, net, batch_size=64, num_epochs=1000, lr=0.0001, device=torch.device("cpu"), print_every=5):
+def train_model(X_train, Y_train, X_test, Y_test, net, batch_size=64, num_epochs=1000,
+                lr=0.0001, weight_decay=0,
+                device=torch.device("cpu"), print_every=5):
     net.to(device)
     print(net)
     
@@ -15,7 +17,7 @@ def train_model(X_train, Y_train, X_test, Y_test, net, batch_size=64, num_epochs
     num_batches = math.ceil(X_train.size()[0] / batch_size)
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(net.parameters(), lr=lr)
+    optimizer = optim.Adam(net.parameters(), lr=lr, weight_decay=weight_decay)
 
     for epoch in range(num_epochs):
 
