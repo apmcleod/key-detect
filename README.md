@@ -30,6 +30,7 @@ conda activate key
 conda install pytorch torchvision -c pytorch
 conda install -c conda-forge librosa
 pip install madmom
+pip install pyinstaller
 ```
 
 ### Data Download
