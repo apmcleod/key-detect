@@ -409,9 +409,9 @@ def load_msd_data(chunk_start_nr,
             label_path = os.path.join(meta['LABEL_PREFIX'], file_stub+meta['LABEL_SUFFIX'])
             
             key_map = h5py.File(label_path, 'r')['analysis']['songs']
-            key = key_map['key'][0]
+            key = int(key_map['key'][0])
             key_confidence = key_map['key_confidence'][0]
-            mode = key_map['mode'][0]
+            mode = int(key_map['mode'][0])
             mode_confidence = key_map['mode_confidence'][0]
             # Convert from C=0 (how h5 stores it) to A=0 (how we store it)
             key = keys.shift(key, 3)

@@ -15,8 +15,8 @@ def play_from_label(label):
     chunk_loc = './data/working/chunks'
     fs = 22050
     chunk_nr = label['chunk_nr']
-    X = np.load('{}/chunk{:04d}.npz'.format(chunk_loc, chunk_nr))['X']
-    idx = label['chunk_idx']
+    X = np.load('{}/chunk{:04d}.npz'.format(chunk_loc, int(chunk_nr)))['X']
+    idx = int(label['chunk_idx'])
     if in_ipynb():
         display.display(display.Audio(X[idx], rate=fs))
     else:
