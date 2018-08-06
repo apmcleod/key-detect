@@ -405,21 +405,21 @@ def load_msd_data(chunk_start_nr,
         chunk_idx = 0
         for ii, filepath in enumerate(files):
             print('File {}/{}'.format(ii+1, len(files)), end="\r")
-            file_stub = filepath.split('lmd_matched_mp3/')[1][:-3]
+            file_stub = filepath.split('lmd_matched_mp3/')[1][:-len(meta['DATA_SUFFIX'])]
             label_path = os.path.join(meta['LABEL_PREFIX'], file_stub+meta['LABEL_SUFFIX'])
             
-            key_file = h5py.File(label_path, 'r')
-            key = key_file['key']
-            key_confidence = key_file['key_confidence']
-            mode = key_file['mode']
-            mode_confidence = key_file['mode_confidence']
+            key_map = h5py.File(label_path, 'r')['analysis']['songs']
+            key = key_map['key'][0]
+            key_confidence = key_map['key_confidence'][0]
+            mode = key_map['mode'][0]
+            mode_confidence = key_map['mode_confidence'][0]
             # Convert from C=0 (how h5 stores it) to A=0 (how we store it)
             key = keys.shift(key, 3)
             # Convert from maj=1, min=0 (how h5 stores it) to maj=[0-11], min=[12-23] (how we store it)
             key += (1 - mode) * 12
             
             if key_confidence < meta['MIN_KEY_CONFIDENCE'] or mode_confidence < meta['MIN_MODE_CONFIDENCE']:
-                print('WARNING: key or mode uncertain, skipping {}'.format(filepath))
+                print('WARNING: key or mode uncertain ({}, {}), skipping {}.'.format(key_confidence, mode_confidence, filepath))
                 delete_rows += [ii]   
                 continue
             file_labels = dict(
