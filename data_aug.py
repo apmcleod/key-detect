@@ -18,16 +18,16 @@ import sys
 SOX_PITCH_STRING = ' -400 -300 -200 -100 100 200 300 400 500 600 700 '
 TMP_DATA = '{}/tmp'.format(fileio.DATA_PREFIX)
 
-def augment_train(labels_prefix=fileio.WORKING_PREFIX, batch_size=50, batch_start=0):
+def augment_train(labels_prefix=fileio.WORKING_PREFIX, batch_size=50, batch_start=0, index_start=0, append=False):
     file_name = '{}/{}.npz'.format(labels_prefix, 'splits')
-    train_idx = np.load(file_name)['train_idx']
+    train_idx = np.load(file_name)['train_idx'][index_start:]
 
     df = pd.read_pickle("{}/labels_raw.pkl".format(labels_prefix))
-    filepaths = list(df['filepath'][train_idx])
-    all_keys = list(df['key'][train_idx])
+    filepaths = list(df['filepath'][train_idx])[index_start:]
+    all_keys = list(df['key'][train_idx])[index_start:]
 
     num_batches = math.ceil(len(train_idx) / batch_size)
-
+    
     for idx in range(batch_start, num_batches):
         print("Augmenting batch {}/{}".format(idx, num_batches - 1))
         
@@ -83,15 +83,20 @@ def augment_train(labels_prefix=fileio.WORKING_PREFIX, batch_size=50, batch_star
     print('Joining all batch files')
     X_aug = np.zeros((0, 144, fileio.LENGTH * 5 + 1))
     Y_aug = np.zeros((0, 24))
+    if append:
+        with np.load("{}/data_aug.npz".format(DATA_DIR)) as aug:
+            X_aug = aug['X']
+            Y_aug = aug['Y']
+        
     
     for idx in range(num_batches):
         file = '{}/data_aug_{}.npz'.format(labels_prefix, idx)
         if os.path.isfile(file):
-            augmented = np.load('{}/data_aug_{}.npz'.format(labels_prefix, idx))
-            X_aug = np.concatenate((X_aug, augmented['X']), axis=0)
-            Y_aug = np.concatenate((Y_aug, augmented['Y']), axis=0)
+            with np.load('{}/data_aug_{}.npz'.format(labels_prefix, idx)) as aug:
+                X_aug = np.vstack((X_aug, aug['X']))
+                Y_aug = np.vstack((Y_aug, aug['Y']))
         else:
-            print('WARNING: {} not found. Skipping.'.format(file))
+            print('WARNING: {} not found. Skipping. (This may be normal with --append and --batch).'.format(file))
         
     print('Writing augmented file and cleaning augmented batches')
     
@@ -157,11 +162,39 @@ def pitch_and_tempo_shift(stft, rate, resample_rate):
 
 if __name__ == '__main__':
     print('Augmenting training data')
-    if len(sys.argv) > 1:
-        print('Starting at batch {}'.format(sys.argv[1]))
-        augment_train(batch_start=int(sys.argv[1]))
-    else:
-        augment_train()
+    batch_start = 0
+    index_start = 0
+    append = False
+    for arg_idx in range(1, len(sys.argv)):
+        arg = sys.argv[arg_idx]
+        
+        if arg == '--append' or arg == '-a':
+            append = True
+            print('Appending to existing data_aug.npz')
+            
+        elif arg.startswith('-b=') or arg.startswith('--batch='):
+            batch_start = int(arg[arg.find('=') + 1 : ])
+            print('Starting from batch {}'.format(batch_start))
+        
+        elif arg.startswith('-i=') or arg.startswith('--index='):
+            index_start = int(arg[arg.find('=') + 1 : ])
+            print('Starting from index {}'.format(batch_start))
+        
+        else:
+            print('Data Augmentation usage error.')
+            print('Usage: data_aug.py [-a (--append)] [-i=INT (--index=INT)] [-b=INT (--batch=INT)]')
+            print()
+            print('-a (--append): Append the created augmented data to the existing data_aug.npz file')
+            print('-i=INT (--index=INT): Start augmenting songs from the given index (in the train_indexes list)') 
+            print('-b=INT (--batch=INT): Start augmenting from the given batch number ' +
+                  '(relative to the starting index from -i, if given)')
+            print()
+            print('WARNING: When using both -b and -i, the new batch files will be numbered from 0, beginning at index -i. ' +
+                  'Only those batch numbers within the new batch range will be added to the final X_aug.')
+            print()
+            sys.exit(1)
+    
+    augment_train(batch_start=batch_start, index_start=index_start, append=append)
     print('Augmentations saved at {}/data_aug.npz'.format(fileio.WORKING_PREFIX))
     print('AUGMENTATION COMPLETE!')
 
