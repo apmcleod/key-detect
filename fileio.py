@@ -8,8 +8,8 @@ import shutil
 import random
 import math
 import keys
+import h5py
 from glob import glob
-
 
 
 DATA_PREFIX = 'data'
@@ -53,6 +53,17 @@ GIANT_MTG_META = dict(
     LABEL_SUFFIX = '.LOFI.key',
     GENRE_PREFIX = RAW_PREFIX + '/giantsteps-mtg-key-dataset-master/annotations/genre',
     GENRE_SUFFIX = '.LOFI.genre'
+)
+
+MSD_META = dict(
+    NAME = 'million',
+    OUTFILE = 'labels_million',
+    DATA_PREFIX = RAW_PREFIX + '/lmd_matched_mp3',
+    DATA_SUFFIX = '.mp3',
+    LABEL_PREFIX = RAW_PREFIX + '/lmd_matched_h5',
+    LABEL_SUFFIX = '.h5',
+    MIN_KEY_CONFIDENCE = 0.5,
+    MIN_MODE_CONFIDENCE = 0.5
 )
 
 
@@ -373,11 +384,67 @@ def load_msd_data(chunk_start_nr,
     See load_all_data for more info. Split these into seperate functions
     to allow for easier hacking of partial imports (and adding new data)
     """
-    print('Processing giant-steps files {}'.format(20*'='))
+    print('Processing MSD files {}'.format(20*'='))
+    
     chunk_nr = chunk_start_nr
-    labels_msd = pd.DataFrame()
-#     return labels_gtzan, chunk_nr+1
-    return labels_msd, chunk_nr
+    labels = pd.DataFrame()
+    meta = MSD_META
+    
+    pattern = os.path.join(meta['DATA_PREFIX'], '**', '*'+meta['DATA_SUFFIX'])
+    # sorted important to preserve order
+    file_list = sorted(glob(pattern, recursive=True))
+    if max_records is not None:
+        file_list = file_list[:max_records]
+    for cc, files in enumerate(chunks(file_list, chunk_size)):
+        chunk_nr = chunk_start_nr + cc
+        delete_rows = []
+        # use len(files) instead of chunk_size as last chunk will be smaller
+        X_chunk = np.zeros((len(files), NUM_SAMPLES)) 
+        chunk_name = 'chunk{:04d}'.format(chunk_nr)
+        print('Processing chunk {} (size {})'.format(chunk_nr, len(files)))
+        chunk_idx = 0
+        for ii, filepath in enumerate(files):
+            print('File {}/{}'.format(ii+1, len(files)), end="\r")
+            file_stub = filepath.split('lmd_matched_mp3/')[1][:-3]
+            label_path = os.path.join(meta['LABEL_PREFIX'], file_stub+meta['LABEL_SUFFIX'])
+            
+            key_file = h5py.File(label_path, 'r')
+            key = key_file['key']
+            key_confidence = key_file['key_confidence']
+            mode = key_file['mode']
+            mode_confidence = key_file['mode_confidence']
+            # Convert from C=0 (how h5 stores it) to A=0 (how we store it)
+            key = keys.shift(key, 3)
+            # Convert from maj=1, min=0 (how h5 stores it) to maj=[0-11], min=[12-23] (how we store it)
+            key += (1 - mode) * 12
+            
+            if key_confidence < meta['MIN_KEY_CONFIDENCE'] or mode_confidence < meta['MIN_MODE_CONFIDENCE']:
+                print('WARNING: key or mode uncertain, skipping {}'.format(filepath))
+                delete_rows += [ii]   
+                continue
+            file_labels = dict(
+                filepath = filepath,
+                genre = file_stub.split('/')[0],
+                key = key,
+                key_str = keys.get_string_from_idx(key).replace('\t', ' '),
+                raw = 1,
+                key_shift = 0,
+                time_shift = 1.0,
+                chunk_nr = chunk_nr,
+                chunk_idx = chunk_idx
+            )
+            chunk_idx += 1
+            labels = labels.append(file_labels, ignore_index=True)
+            audio_data = read_audio_data(filepath, FS)
+            audio_data = cut_or_pad_to_length(audio_data, NUM_SAMPLES)
+            X_chunk[ii, :] = audio_data
+        X_chunk = np.delete(X_chunk, delete_rows, axis=0)
+        file_name = '{}/{}.npz'.format(chunk_prefix, chunk_name)
+        np.savez_compressed(file_name, X=X_chunk)
+    labels['majmin'] = ['major' if key < 12 else 'minor' for key in labels['key']]
+    labels['dataset'] = meta['NAME']
+    labels.to_pickle('{}/{}.pkl'.format(labels_prefix, meta['OUTFILE']))
+    return labels, chunk_nr+1
 
 
 def make_labels(labels_prefix=WORKING_PREFIX):

@@ -25,7 +25,7 @@ https://www.dropbox.com/s/dnca94fnr5afmgb/Transposition%20mission.pdf?dl=0
 
 ### Packages
 ```
-conda create -n key python=3.6 numpy matplotlib jupyter pandas scipy scikit-learn cython seaborn
+conda create -n key python=3.6 numpy matplotlib jupyter pandas scipy scikit-learn cython seaborn h5py
 conda activate key
 conda install pytorch torchvision -c pytorch
 conda install -c conda-forge librosa
