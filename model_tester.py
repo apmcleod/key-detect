@@ -96,7 +96,9 @@ def train_model(X_train, Y_train, X_test, Y_test, NetClass, batch_size=64, num_e
                 'global_losses': global_losses,
                 'optimizer' : optimizer.state_dict(),
             }, is_best, 'checkpoint.pth.tar'.format(net.__class__.__name__))
-
+            if is_best:
+                filename = 'model_best.pkl'
+                torch.save(mdl, '{}/{}'.format(fileio.OUTPUT_PREFIX, filename)
     print('Done')
     
     return global_losses
