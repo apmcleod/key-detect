@@ -1,10 +1,28 @@
 # Edinburgh_key_detect_1
-ID: MO1
+IDs: MO1, MO2, MO3
 
 ## Authors
+Andrew McLeod, amcleaod8@staffmail.ed.ac.uk
+James Owers, james.owers@ed.ac.uk
 
+## Installation
+
+```
+conda create -n key python=3.6 numpy matplotlib jupyter pandas scipy scikit-learn cython seaborn h5py
+conda activate key
+conda install pytorch torchvision -c pytorch
+conda install -c conda-forge librosa
+```
 
 ## Example call
+```
+conda activate key
+./detect_key --method [1,2,3] --input file --output file
+```
+
+
+
+
 
 optional flag specifying which GPU to use to predict? (depend on time diff)
 optional call method taking in folders instead of files?
