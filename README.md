@@ -2,24 +2,20 @@
 
 ## Data
 
-### GTZAN
-GTZAN wav data: http://marsyasweb.appspot.com/download/data_sets/  
-GTZAN labels: https://github.com/alexanderlerch/gtzan_key  
-(we decided not to use GTZAN keys as labelling method seemed dodgey: http://visal.cs.cityu.edu.hk/downloads/#gtzankeys cite: Tom L.H. Li and Antoni B. Chan, In: Intl. Conference on MultiMedia Modeling (MMM), Taipei, Jan 2011.)  
-
-### GiantSteps
-GiantStepsKey (electronic music): https://github.com/GiantSteps/giantsteps-key-dataset
-
-### GiantSteps-MTG
-GiantStepsKey 2 (electronic music): https://github.com/GiantSteps/giantsteps-mtg-key-dataset
-
-### MSD
-Labels from: https://labrosa.ee.columbia.edu/millionsong/
-Data from: ...
-
-## Notes
-https://www.dropbox.com/s/dnca94fnr5afmgb/Transposition%20mission.pdf?dl=0
-
+* GTZAN
+    GTZAN wav data: http://marsyasweb.appspot.com/download/data_sets/  
+    GTZAN labels: https://github.com/alexanderlerch/gtzan_key  
+    (we decided not to use GTZAN keys as labelling method seemed dodgey: 
+    http://visal.cs.cityu.edu.hk/downloads/#gtzankeys cite: Tom L.H. Li 
+    and Antoni B. Chan, In: Intl. Conference on MultiMedia Modeling (MMM), 
+    Taipei, Jan 2011.)  
+* GiantSteps
+    GiantStepsKey (electronic music): https://github.com/GiantSteps/giantsteps-key-dataset
+* GiantSteps-MTG
+    GiantStepsKey 2 (electronic music): https://github.com/GiantSteps/giantsteps-mtg-key-dataset
+* MSD
+    Labels from: https://labrosa.ee.columbia.edu/millionsong/
+    Data from: please contact authors fmi
 
 ## Installation
 
@@ -101,3 +97,7 @@ with np.load("{}/data_aug.npz".format(DATA_DIR)) as data:
 X_train = np.vstack(X_train, X_aug)
 Y_train = np.vstack(Y_train, Y_aug)
 ```
+
+
+## Notes
+https://www.dropbox.com/s/dnca94fnr5afmgb/Transposition%20mission.pdf?dl=0
