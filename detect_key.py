@@ -75,11 +75,10 @@ if __name__ == "__main__":
             model_pkl_loc = '{}/MO2_model_best.pkl'.format(OUTPUT_PREFIX)
         logging.info(msg)
         logging.info("Instantiating Neural Network")
-        net = torch.load(model_pkl_loc).to(torch.device('cpu'))
+        net = torch.load(model_pkl_loc, map_location='cpu')
         logging.debug("Pytorch model loaded")
         logging.info("Making prediction")
         x_test = torch.from_numpy(cqt[np.newaxis, :]).float()
-        x_test = x_test
         probs = net(x_test)
         pred = np.argmax(probs.data, axis=1).squeeze()
         pred_str = keys.STRING_MAP[pred]  
