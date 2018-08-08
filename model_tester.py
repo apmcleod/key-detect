@@ -7,8 +7,9 @@ import torch.optim as optim
 import shutil
 import os
 import fileio
+import h5py
 
-def train_model(X_train, Y_train, X_test, Y_test, NetClass, batch_size=64, num_epochs=100,
+def train_model(h5_file, NetClass, batch_size=64, num_epochs=100,
                 lr=0.0001, weight_decay=0,
                 device=torch.device("cpu"), seed=None,
                 print_every=1, save_every=10, resume=None):
@@ -20,10 +21,12 @@ def train_model(X_train, Y_train, X_test, Y_test, NetClass, batch_size=64, num_e
     net = NetClass()
     net.to(device)
     
-    X_test = X_test.to(device)
-    Y_test = Y_test.to(device)
+    data_file = h5py.File(h5_file, 'r')
+    train_size = data_file['X_train'].shape[0]
+    test_size = data_file['X_test'].shape[0]
+    data_file.close()
     
-    num_batches = math.ceil(X_train.size()[0] / batch_size)
+    num_batches = math.ceil(train_size / batch_size)
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(net.parameters(), lr=lr, weight_decay=weight_decay)
@@ -45,23 +48,24 @@ def train_model(X_train, Y_train, X_test, Y_test, NetClass, batch_size=64, num_e
     print(net)
 
     for epoch in range(epoch_start, num_epochs):
-        
-        shuffle = np.arange(X_train.shape[0])
+        shuffle = np.arange(test_size)
         np.random.shuffle(shuffle)
-        X_train = X_train[shuffle]
-        Y_train = Y_train[shuffle]
 
-        losses = []
-        scores = []
+        avg_loss = 0
+        avg_score = 0
 
         for batch_num in range(num_batches):
+            print('Batch {}/{}'.format(batch_num, num_batches))
             bottom = batch_size * batch_num
-            top = min(batch_size * (batch_num + 1), X_train.size()[0])
+            top = min(batch_size * (batch_num + 1), train_size)
+            indeces = sorted(shuffle[bottom : top])
             
-            X_batch = X_train[bottom : top]
+            data_file = h5py.File(h5_file, 'r')
+            X_batch = torch.from_numpy(data_file['X_train'][indeces]).float()
             X_batch = X_batch.to(device)
-            Y_batch = Y_train[bottom : top]
+            Y_batch = torch.from_numpy(data_file['Y_train'][indeces])
             Y_batch = Y_batch.to(device)
+            data_file.close()
 
             optimizer.zero_grad()
 
@@ -70,22 +74,23 @@ def train_model(X_train, Y_train, X_test, Y_test, NetClass, batch_size=64, num_e
             loss.backward()
             optimizer.step()
 
-            losses.append(loss.item() * X_batch.size()[0])
-            scores.extend(evaluation.get_scores(Y_batch, np.argmax(Y_hat.data, axis=1)))
+            avg_loss += loss.item() * X_batch.size()[0]
+            avg_score += np.sum(evaluation.get_scores(Y_batch, np.argmax(Y_hat.data, axis=1)))
 
-            
-        test_score = np.mean(evaluation.get_scores(Y_test, np.argmax(net(X_test).data, axis=1)))
+        avg_loss = avg_loss / train_size
+        avg_score = avg_score / train_size
+        test_score = get_score_batched(net, h5file, device=device)
+        
         is_best = False
         if test_score > best_score:
             best_score = test_score
             is_best = True
             
-        this_loss = np.sum(losses) / X_train.size()[0]
-        global_losses.append(this_loss)
+        global_losses.append(avg_loss)
             
         if epoch % print_every == 0:
-            print('epoch ' + str(epoch) + ' loss: ' + str(this_loss))
-            print('Train accuracy = ' + str(np.mean(scores)))
+            print('epoch ' + str(epoch) + ' loss: ' + str(avg_loss))
+            print('Train accuracy = ' + str(avg_score))
             print('Test accuracy = ' + str(test_score))
             
         if epoch % save_every == 0 or is_best:
@@ -103,6 +108,29 @@ def train_model(X_train, Y_train, X_test, Y_test, NetClass, batch_size=64, num_e
     
     return global_losses
 
+
+def get_score_batched(net, h5_file, device=torch.device("cpu"), batch_size=256, X='X_test', Y='Y_test'):
+    data_file = h5py.File(h5_file, 'r')
+    X_size = data_file[X].shape[0]
+    data_file.close()
+    
+    num_batches = math.ceil(X_size / batch_size)
+    avg_score = 0
+    
+    for batch_num in range(num_batches):
+        bottom = batch_size * batch_num
+        top = min(batch_size * (batch_num + 1), X_size)
+
+        data_file = h5py.File(h5_file, 'r')
+        X_batch = torch.from_numpy(data_file[X][bottom : top]).float()
+        X_batch = X_batch.to(device)
+        Y_batch = torch.from_numpy(data_file[Y][bottom : top])
+        Y_batch = Y_batch.to(device)
+        data_file.close()
+        
+        avg_score += np.sum(evaluation.get_scores(Y_batch, np.argmax(net(X_batch).data, axis=1)))
+        
+    return avg_score / X_size
 
 
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):

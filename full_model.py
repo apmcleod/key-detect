@@ -65,7 +65,7 @@ class ConvBiLstm(nn.Module):
         
         x = F.elu(self.dense(x))
         
-        x = x.squeeze()
+        x = x.squeeze(dim=2)
         x = x.transpose(1, 2)
         x = self.lstm(x)[0].transpose(1, 2)
         
@@ -73,9 +73,9 @@ class ConvBiLstm(nn.Module):
         x = F.elu(self.conv_pool(x))
         
         # Take average of each conv's activation for each pitch
-        x = x.squeeze()
+        x = x.squeeze(dim=3)
         x = F.avg_pool1d(x.transpose(1, 2), 10)
-        x = x.squeeze()
+        x = x.squeeze(dim=2)
         
         x = F.elu(self.fc1(x))
         return F.softmax(self.fc3(x), dim=1)
