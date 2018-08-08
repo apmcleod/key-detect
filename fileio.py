@@ -507,13 +507,11 @@ def make_h5(labels_prefix=WORKING_PREFIX, h5_file='data.h5'):
     Y_test = np.argmax(Y_test, axis=1)
     Y_train = np.argmax(Y_train, axis=1)
     
-    file = h5py.File('{}/{}'.format(labels_prefix, h5_file), 'w')
-    file.create_dataset('X_train', data=X_train, dtype=float, compression='lzf')
-    file.create_dataset('Y_train', data=Y_train, dtype='i8', compression='lzf')
-    file.create_dataset('X_test', data=X_test, dtype=float, compression='lzf')
-    file.create_dataset('Y_test', data=Y_test, dtype='i8', compression='lzf')
-
-    file.close()
+    with h5py.File('{}/{}'.format(labels_prefix, h5_file), 'w') as file:
+        file.create_dataset('X_train', data=X_train, dtype=float, chunks=(1,144,151))
+        file.create_dataset('Y_train', data=Y_train, dtype='i8', chunks=(1024,))
+        file.create_dataset('X_test', data=X_test, dtype=float, chunks=(64,144,151))
+        file.create_dataset('Y_test', data=Y_test, dtype='i8', chunks=(1024,))
 
 
 if __name__ == "__main__":

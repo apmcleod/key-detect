@@ -75,11 +75,8 @@ def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
             loss.backward()
             optimizer.step()
 
-            score = np.sum(evaluation.get_scores(Y_batch, np.argmax(Y_hat.data, axis=1)))
-            print('Batch {} loss = {}'.format(batch_num, loss.item()))
-            print('Batch {} score = {}'.format(batch_num, score / X_batch.size()[0]))
             avg_loss += loss.item() * X_batch.size()[0]
-            avg_score += score
+            avg_score += np.sum(evaluation.get_scores(Y_batch, np.argmax(Y_hat.data, axis=1)))
 
         avg_loss = avg_loss / train_size
         avg_score = avg_score / train_size
@@ -135,10 +132,6 @@ def get_score_batched(net, h5_file, device=torch.device("cpu"), batch_size=256, 
         score = np.sum(evaluation.get_scores(Y_batch, np.argmax(net(X_batch).data, axis=1)))
         avg_score += score
         
-        print('Batch {} score sum = {}'.format(batch_num, score))
-        print('Running average = {}'.format(avg_score))
-        
-    print('final avg = {}'.format(avg_score / X_size))
     return avg_score / X_size
 
 
