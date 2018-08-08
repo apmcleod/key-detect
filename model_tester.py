@@ -54,8 +54,8 @@ def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
         avg_score = 0
 
         for batch_num in range(num_batches):
-            if batch_num % 20 == 0:
-                print('Batch {}/{}'.format(batch_num, num_batches))
+            if (batch_num + 1) % 50 == 0:
+                print('Batch {}/{}'.format(batch_num + 1, num_batches))
                 
             bottom = batch_size * batch_num
             top = min(batch_size * (batch_num + 1), train_size)
@@ -142,4 +142,5 @@ def save_checkpoint(state, is_best, model_name, filename='checkpoint.pth.tar'):
     torch.save(state, '{}/{}_{}'.format(fileio.OUTPUT_PREFIX, model_name, filename))
     
     if is_best:
-        shutil.copyfile('{}/{}'.format(fileio.OUTPUT_PREFIX, filename), '{}/{}_model_best.pth.tar'.format(fileio.OUTPUT_PREFIX, model_name))
+        shutil.copyfile('{}/{}_{}'.format(fileio.OUTPUT_PREFIX, model_name, filename),
+                        '{}/{}_model_best.pth.tar'.format(fileio.OUTPUT_PREFIX, model_name))
