@@ -10,6 +10,7 @@ import math
 import keys
 import h5py
 from glob import glob
+import h5py
 
 
 DATA_PREFIX = 'data'
@@ -485,7 +486,31 @@ def make_Y(labels_prefix=WORKING_PREFIX):
     y = df['key']
     Y = np.array([keys.get_vector_from_key(kk) for kk in y])
     file_name = '{}/{}.npz'.format(labels_prefix, 'Y')
-    np.savez_compressed(file_name, Y=Y) 
+    np.savez_compressed(file_name, Y=Y)
+    
+    
+def make_h5(labels_prefix=WORKING_PREFIX, h5_file='data.h5'):
+    labels = pd.read_pickle("{}/labels.pkl".format(labels_prefix))
+
+    with np.load("{}/splits.npz".format(labels_prefix)) as splits:
+        train_idx = splits['train_idx']
+        test_idx = splits['test_idx']
+
+    X = np.load("{}/X_cqt.npz".format(labels_prefix))['X']
+    X_train = X[train_idx, :]
+    X_test = X[test_idx, :]
+
+    Y = np.load("{}/Y.npz".format(labels_prefix))['Y']
+    Y_train = Y[train_idx, :]
+    Y_test = Y[test_idx, :]
+    
+    file = h5py.File('{}/{}'.format(labels_prefix, h5_file), 'w')
+    file.create_dataset('X_train', data=X_train, dtype=float, compression='lzf')
+    file.create_dataset('Y_train', data=Y_train, dtype='i8', compression='lzf')
+    file.create_dataset('X_test', data=X_test, dtype=float, compression='lzf')
+    file.create_dataset('Y_test', data=Y_test, dtype='i8', compression='lzf')
+
+    file.close()
 
 
 if __name__ == "__main__":
