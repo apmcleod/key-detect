@@ -9,7 +9,7 @@ import os
 import fileio
 import h5py
 
-def train_model(h5_file, net, batch_size=64, num_epochs=100,
+def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
                 lr=0.0001, weight_decay=0,
                 device=torch.device("cpu"), seed=None,
                 print_every=1, save_every=10, resume=None):
@@ -47,7 +47,7 @@ def train_model(h5_file, net, batch_size=64, num_epochs=100,
     print(net)
 
     for epoch in range(epoch_start, num_epochs):
-        shuffle = np.arange(test_size)
+        shuffle = np.arange(train_size)
         np.random.shuffle(shuffle)
 
         avg_loss = 0
@@ -75,12 +75,15 @@ def train_model(h5_file, net, batch_size=64, num_epochs=100,
             loss.backward()
             optimizer.step()
 
+            score = np.sum(evaluation.get_scores(Y_batch, np.argmax(Y_hat.data, axis=1)))
+            print('Batch {} loss = {}'.format(batch_num, loss.item()))
+            print('Batch {} score = {}'.format(batch_num, score / X_batch.size()[0]))
             avg_loss += loss.item() * X_batch.size()[0]
-            avg_score += np.sum(evaluation.get_scores(Y_batch, np.argmax(Y_hat.data, axis=1)))
+            avg_score += score
 
         avg_loss = avg_loss / train_size
         avg_score = avg_score / train_size
-        test_score = get_score_batched(net, h5file, device=device)
+        test_score = get_score_batched(net, h5_file, device=device)
         
         is_best = False
         if test_score > best_score:
@@ -101,9 +104,9 @@ def train_model(h5_file, net, batch_size=64, num_epochs=100,
                 'best_score': best_score,
                 'global_losses': global_losses,
                 'optimizer' : optimizer.state_dict(),
-            }, is_best, 'checkpoint.pth.tar'.format(net.__class__.__name__))
+            }, is_best, model_name, 'checkpoint.pth.tar')
             if is_best:
-                filename = 'model_best.pkl'
+                filename = '{}_model_best.pkl'.format(model_name)
                 torch.save(net, '{}/{}'.format(fileio.OUTPUT_PREFIX, filename))
     print('Done')
     
@@ -129,16 +132,21 @@ def get_score_batched(net, h5_file, device=torch.device("cpu"), batch_size=256, 
         Y_batch = Y_batch.to(device)
         data_file.close()
         
-        avg_score += np.sum(evaluation.get_scores(Y_batch, np.argmax(net(X_batch).data, axis=1)))
+        score = np.sum(evaluation.get_scores(Y_batch, np.argmax(net(X_batch).data, axis=1)))
+        avg_score += score
         
+        print('Batch {} score sum = {}'.format(batch_num, score))
+        print('Running average = {}'.format(avg_score))
+        
+    print('final avg = {}'.format(avg_score / X_size))
     return avg_score / X_size
 
 
-def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
+def save_checkpoint(state, is_best, model_name, filename='checkpoint.pth.tar'):
     if not os.path.exists(fileio.OUTPUT_PREFIX):
         os.makedirs(fileio.OUTPUT_PREFIX)
         
-    torch.save(state, '{}/{}'.format(fileio.OUTPUT_PREFIX, filename))
+    torch.save(state, '{}/{}_{}'.format(fileio.OUTPUT_PREFIX, model_name, filename))
     
     if is_best:
-        shutil.copyfile('{}/{}'.format(fileio.OUTPUT_PREFIX, filename), '{}/model_best.pth.tar'.format(fileio.OUTPUT_PREFIX))
+        shutil.copyfile('{}/{}'.format(fileio.OUTPUT_PREFIX, filename), '{}/{}_model_best.pth.tar'.format(fileio.OUTPUT_PREFIX, model_name))
