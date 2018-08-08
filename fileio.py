@@ -507,6 +507,9 @@ def make_h5(labels_prefix=WORKING_PREFIX, h5_file='data.h5'):
     Y_test = np.argmax(Y_test, axis=1)
     Y_train = np.argmax(Y_train, axis=1)
     
+    if os.path.exists('{}/{}'.format(labels_prefix, h5_file)):
+        os.remove('{}/{}'.format(labels_prefix, h5_file))
+    
     with h5py.File('{}/{}'.format(labels_prefix, h5_file), 'w') as file:
         file.create_dataset('X_train', data=X_train, dtype=float, chunks=(1,144,151), maxshape=(None, 144, 151))
         file.create_dataset('Y_train', data=Y_train, dtype='i8', chunks=(1024,), maxshape=(None,))
