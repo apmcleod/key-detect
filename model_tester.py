@@ -9,7 +9,7 @@ import os
 import fileio
 import h5py
 
-def train_model(h5_file, NetClass, batch_size=64, num_epochs=100,
+def train_model(h5_file, net, batch_size=64, num_epochs=100,
                 lr=0.0001, weight_decay=0,
                 device=torch.device("cpu"), seed=None,
                 print_every=1, save_every=10, resume=None):
@@ -18,7 +18,6 @@ def train_model(h5_file, NetClass, batch_size=64, num_epochs=100,
         torch.manual_seed(seed)
         np.random.seed(seed)
     
-    net = NetClass()
     net.to(device)
     
     data_file = h5py.File(h5_file, 'r')
@@ -55,7 +54,9 @@ def train_model(h5_file, NetClass, batch_size=64, num_epochs=100,
         avg_score = 0
 
         for batch_num in range(num_batches):
-            print('Batch {}/{}'.format(batch_num, num_batches))
+            if batch_num % 20 == 0:
+                print('Batch {}/{}'.format(batch_num, num_batches))
+                
             bottom = batch_size * batch_num
             top = min(batch_size * (batch_num + 1), train_size)
             indeces = sorted(shuffle[bottom : top])
