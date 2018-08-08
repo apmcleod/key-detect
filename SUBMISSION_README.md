@@ -14,27 +14,47 @@ conda install pytorch torchvision -c pytorch
 conda install -c conda-forge librosa
 ```
 
+## Executable help
+
+```
+: ./detect_key.py -h
+usage: detect_key.py [-h] -m {1,2,3} -i INPUT [-o OUTPUT] [-v {0,1,2}]
+
+Detects the key of a given wav file input. Uses only the first 30 seconds of
+the provided audio file. The output is of the form: <tonic {A, A#, Bb, ...}>
+<mode {major, minor}>
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -m {1,2,3}, --model {1,2,3}
+                        Which model to use for prediction
+  -i INPUT, --input INPUT
+                        Path to input wav
+  -o OUTPUT, --output OUTPUT
+                        Path to output file
+  -v {0,1,2}, --verbosity {0,1,2}
+                        Level of verbosity (0=errors only, 1=some info, 2=most
+                        verbose)
+```
+
 ## Example call
+
 ```
 conda activate key
 input=data/raw/genres/blues/blues.00000.au  # input data (can be wav/mp3/au)
 output=blues.00000.au.prediction.txt        # file to write precition to
 verbosity=2
 model=1  # 1: MO1, 2: MO2, 3: MO3
-./detect_key.py -h
 ./detect_key.py -m $model -i $input -o $output -v $verbosity
-./detect_key.py --model $model \
-                --input $input \
-                # --output $output \  # excluding output arg prints to stdout
-                --verbosity 0  # 0 gives minimal printing to console
 ```
 
-
-
-
-
-optional flag specifying which GPU to use to predict? (depend on time diff)
-optional call method taking in folders instead of files?
+Another example:
+```
+./detect_key.py --model 1 \
+                --input data/raw/genres/blues/blues.00000.au \
+                # --output out.txt \  # excluding output arg prints to stdout
+                # --verbosity 0  # 0 gives minimal printing to console (default)
+```
 
 ####
 Command line calling format for all executables including examples
