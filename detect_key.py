@@ -73,16 +73,15 @@ if __name__ == "__main__":
         if model == 2:
             msg = "Using MO2 - reimplementation of FK1 2017"
             model_pkl_loc = '{}/MO2_model_best.pkl'.format(OUTPUT_PREFIX)
-        raise NotImplementedError()
         logging.info(msg)
         logging.info("Instantiating Neural Network")
-        net = torch.load(model_pkl_loc).to(device)
+        net = torch.load(model_pkl_loc).to(torch.device('cpu'))
         logging.debug("Pytorch model loaded")
         logging.info("Making prediction")
         x_test = torch.from_numpy(cqt[np.newaxis, :]).float()
-        x_test = x_test.to(device)
+        x_test = x_test
         probs = net(x_test)
-        pred = np.argmax(probs, axis=1).squeeze()
+        pred = np.argmax(probs.data, axis=1).squeeze()
         pred_str = keys.STRING_MAP[pred]  
         print_output(pred_str, output_file)
     elif model == 3:

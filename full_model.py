@@ -28,7 +28,7 @@ class ReproductionNet(nn.Module):
         x = F.elu(self.conv5(x))
         
         x = F.elu(self.dense(x))
-        x = x.squeeze()
+        x = x.squeeze(dim=2)
         
         x = F.elu(self.pool(x))
         x = x.view(-1, 48)
