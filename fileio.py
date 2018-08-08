@@ -508,11 +508,24 @@ def make_h5(labels_prefix=WORKING_PREFIX, h5_file='data.h5'):
     Y_train = np.argmax(Y_train, axis=1)
     
     with h5py.File('{}/{}'.format(labels_prefix, h5_file), 'w') as file:
-        file.create_dataset('X_train', data=X_train, dtype=float, chunks=(1,144,151))
-        file.create_dataset('Y_train', data=Y_train, dtype='i8', chunks=(1024,))
-        file.create_dataset('X_test', data=X_test, dtype=float, chunks=(64,144,151))
-        file.create_dataset('Y_test', data=Y_test, dtype='i8', chunks=(1024,))
+        file.create_dataset('X_train', data=X_train, dtype=float, chunks=(1,144,151), maxshape=(None, 144, 151))
+        file.create_dataset('Y_train', data=Y_train, dtype='i8', chunks=(1024,), maxshape=(None,))
+        file.create_dataset('X_test', data=X_test, dtype=float, chunks=(64,144,151), maxshape=(None, 144, 151))
+        file.create_dataset('Y_test', data=Y_test, dtype='i8', chunks=(1024,), maxshape=(None,))
 
+        
+def augment_h5(labels_prefix=WORKING_PREFIX, h5_file='data.h5'):
+    with h5py.File('{}/{}'.format(labels_prefix, h5_file), 'a') as file:
+        with np.load('{}/data_aug.npz'.format(labels_prefix)) as aug:
+            X_aug = aug['X']
+            Y_aug = np.argmax(aug['Y'], axis=1)
+            
+            file['X_train'].resize(file['X_train'].shape[0] + X_aug.shape[0], axis=0)
+            file['X_train'][-X_aug.shape[0]:] = X_aug
+            
+            file['Y_train'].resize(file['Y_train'].shape[0] + Y_aug.shape[0], axis=0)
+            file['Y_train'][-Y_aug.shape[0]:] = Y_aug
+        
 
 if __name__ == "__main__":
     print("Performing initial data import")
