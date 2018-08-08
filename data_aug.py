@@ -89,7 +89,8 @@ def augment_from_dataframe_parallel(proc_id, to_augment):
         
         # Shift with sox
         subprocess.call(['./augment.sh', TMP_DATA, filename, sox_shifts])
-        
+        os.remove(filename)
+
         basename = os.path.basename(filename)
         
         # Read shifted files
@@ -99,6 +100,7 @@ def augment_from_dataframe_parallel(proc_id, to_augment):
 
             shifted_audio_data = fileio.cut_or_pad_to_length(
                 fileio.read_audio_data(shifted_filename, fileio.FS), fileio.NUM_SAMPLES)
+            os.remove(shifted_filename)
 
             cqt = features.get_cqt(shifted_audio_data)
             X_aug = np.concatenate((X_aug, cqt.reshape(1, cqt.shape[0], cqt.shape[1])), axis=0)
