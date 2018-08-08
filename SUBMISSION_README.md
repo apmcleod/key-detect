@@ -17,7 +17,16 @@ conda install -c conda-forge librosa
 ## Example call
 ```
 conda activate key
-./detect_key --method [1,2,3] --input file --output file
+input=data/raw/genres/blues/blues.00000.au  # input data (can be wav/mp3/au)
+output=blues.00000.au.prediction.txt        # file to write precition to
+verbosity=2
+model=1  # 1: MO1, 2: MO2, 3: MO3
+./detect_key.py -h
+./detect_key.py -m $model -i $input -o $output -v $verbosity
+./detect_key.py --model $model \
+                --input $input \
+                # --output $output \  # excluding output arg prints to stdout
+                --verbosity 0  # 0 gives minimal printing to console
 ```
 
 
