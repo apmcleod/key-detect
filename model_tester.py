@@ -12,7 +12,7 @@ import h5py
 def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
                 lr=0.0001, weight_decay=0,
                 device=torch.device("cpu"), seed=None,
-                print_every=1, save_every=10, resume=None):
+                print_every=1, save_every=10, resume=None, small_ram=False):
     
     if seed:
         torch.manual_seed(seed)
@@ -20,9 +20,17 @@ def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
     
     net.to(device)
     
+    X_test_full = None
+    Y_test_full = None
+    
     data_file = h5py.File(h5_file, 'r')
     train_size = data_file['X_train'].shape[0]
     test_size = data_file['X_test'].shape[0]
+    if not small_ram:
+        X_train_full = data_file['X_train'].value
+        Y_train_full = data_file['Y_train'].value
+        X_test_full = data_file['X_test'].value
+        Y_test_full = data_file['Y_test'].value
     data_file.close()
     
     num_batches = math.ceil(train_size / batch_size)
@@ -59,15 +67,19 @@ def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
                 
             bottom = batch_size * batch_num
             top = min(batch_size * (batch_num + 1), train_size)
-            indeces = sorted(shuffle[bottom : top])
             
-            data_file = h5py.File(h5_file, 'r')
-            X_batch = torch.from_numpy(data_file['X_train'][indeces]).float()
-            X_batch = X_batch.to(device)
-            Y_batch = torch.from_numpy(data_file['Y_train'][indeces])
-            Y_batch = Y_batch.to(device)
-            data_file.close()
+            if small_ram:
+                indeces = sorted(shuffle[bottom : top])
+                data_file = h5py.File(h5_file, 'r')
+                X_batch = torch.from_numpy(data_file['X_train'][indeces]).float().to(device)
+                Y_batch = torch.from_numpy(data_file['Y_train'][indeces]).to(device)
+                data_file.close()
+            else:
+                indeces = shuffle[bottom : top]
+                X_batch = torch.from_numpy(X_train_full[indeces]).float().to(device)
+                Y_batch = torch.from_numpy(Y_train_full[indeces]).to(device)
 
+            
             optimizer.zero_grad()
 
             Y_hat = net(X_batch)
@@ -80,7 +92,7 @@ def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
 
         avg_loss = avg_loss / train_size
         avg_score = avg_score / train_size
-        test_score = get_score_batched(net, h5_file, device=device)
+        test_score = get_score_batched(net, h5_file, X_test_full, Y_test_full, small_ram=small_ram, device=device)
         
         is_best = False
         if test_score > best_score:
@@ -110,10 +122,15 @@ def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
     return global_losses
 
 
-def get_score_batched(net, h5_file, device=torch.device("cpu"), batch_size=256, X='X_test', Y='Y_test'):
-    data_file = h5py.File(h5_file, 'r')
-    X_size = data_file[X].shape[0]
-    data_file.close()
+def get_score_batched(net, h5_file, X_full, Y_full, small_ram=False,
+                      device=torch.device("cpu"), batch_size=256, X='X_test', Y='Y_test'):
+    
+    if small_ram:
+        data_file = h5py.File(h5_file, 'r')
+        X_size = data_file[X].shape[0]
+        data_file.close()
+    else:
+        X_size = X_full.shape[0]
     
     num_batches = math.ceil(X_size / batch_size)
     avg_score = 0
@@ -122,12 +139,14 @@ def get_score_batched(net, h5_file, device=torch.device("cpu"), batch_size=256, 
         bottom = batch_size * batch_num
         top = min(batch_size * (batch_num + 1), X_size)
 
-        data_file = h5py.File(h5_file, 'r')
-        X_batch = torch.from_numpy(data_file[X][bottom : top]).float()
-        X_batch = X_batch.to(device)
-        Y_batch = torch.from_numpy(data_file[Y][bottom : top])
-        Y_batch = Y_batch.to(device)
-        data_file.close()
+        if small_ram:
+            data_file = h5py.File(h5_file, 'r')
+            X_batch = torch.from_numpy(data_file[X][bottom : top]).float().to(device)
+            Y_batch = torch.from_numpy(data_file[Y][bottom : top]).to(device)
+            data_file.close()
+        else:
+            X_batch = torch.from_numpy(X_full[bottom : top]).float().to(device)
+            Y_batch = torch.from_numpy(Y_full[bottom : top]).to(device)
         
         score = np.sum(evaluation.get_scores(Y_batch, np.argmax(net(X_batch).data, axis=1)))
         avg_score += score
