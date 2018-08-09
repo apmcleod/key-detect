@@ -80,16 +80,20 @@ def augment_from_dataframe_parallel(proc_id, to_augment):
         sox_shifts = ' ' + ' '.join(str(shift * 100) for shift in shifts) + ' '
         
         # Convert from mp3 if needed
+        delete = False
         if filename.endswith('.mp3'):
             audio_data = fileio.read_audio_data(filename, fileio.FS)
             t = time.time()
             tmp_name = '{}/{}_{}.wav'.format(TMP_DATA, proc_id, t)
             librosa.output.write_wav(tmp_name, audio_data, fileio.FS)
             filename = tmp_name
+            delete = True
         
         # Shift with sox
         subprocess.call(['./augment.sh', TMP_DATA, filename, sox_shifts])
-        os.remove(filename)
+
+        if delete:
+            os.remove(filename)
 
         basename = os.path.basename(filename)
         

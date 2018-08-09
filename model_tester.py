@@ -40,7 +40,8 @@ def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
     
     epoch_start = 0
     best_score = 0
-    global_losses = []
+    global_train_losses = []
+    global_test_losses = []
     
     if resume:
         print("loading checkpoint '{}'".format(resume))
@@ -49,7 +50,8 @@ def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
         net.load_state_dict(checkpoint['model'])
         net.to(device)
         best_score = checkpoint['best_score']
-        global_losses = checkpoint['global_losses']
+        global_test_losses = checkpoint['global_test_losses']
+        global_train_losses = checkpoint['global_train_losses']
         optimizer.load_state_dict(checkpoint['optimizer'])
        
     print(net)
@@ -92,14 +94,15 @@ def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
 
         avg_loss = avg_loss / train_size
         avg_score = avg_score / train_size
-        test_score = get_score_batched(net, h5_file, X_test_full, Y_test_full, small_ram=small_ram, device=device)
+        test_score, test_loss = get_score_batched(net, h5_file, X_test_full, Y_test_full, criterion, small_ram=small_ram, device=device)
         
         is_best = False
         if test_score > best_score:
             best_score = test_score
             is_best = True
             
-        global_losses.append(avg_loss)
+        global_train_losses.append(avg_loss)
+        global_test_losses.append(test_loss)
             
         if epoch % print_every == 0:
             print('epoch ' + str(epoch) + ' loss: ' + str(avg_loss))
@@ -111,7 +114,8 @@ def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
                 'epoch': epoch + 1,
                 'model': net.state_dict(),
                 'best_score': best_score,
-                'global_losses': global_losses,
+                'global_test_losses': global_test_losses,
+                'global_train_losses': global_train_losses,
                 'optimizer' : optimizer.state_dict(),
             }, is_best, model_name, 'checkpoint.pth.tar')
             if is_best:
@@ -119,10 +123,10 @@ def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
                 torch.save(net, '{}/{}'.format(fileio.OUTPUT_PREFIX, filename))
     print('Done')
     
-    return global_losses
+    return global_train_losses, global_test_losses
 
 
-def get_score_batched(net, h5_file, X_full, Y_full, small_ram=False,
+def get_score_batched(net, h5_file, X_full, Y_full, criterion, small_ram=False,
                       device=torch.device("cpu"), batch_size=256, X='X_test', Y='Y_test'):
     
     if small_ram:
@@ -134,6 +138,7 @@ def get_score_batched(net, h5_file, X_full, Y_full, small_ram=False,
     
     num_batches = math.ceil(X_size / batch_size)
     avg_score = 0
+    avg_loss = 0
     
     for batch_num in range(num_batches):
         bottom = batch_size * batch_num
@@ -148,10 +153,16 @@ def get_score_batched(net, h5_file, X_full, Y_full, small_ram=False,
             X_batch = torch.from_numpy(X_full[bottom : top]).float().to(device)
             Y_batch = torch.from_numpy(Y_full[bottom : top]).to(device)
         
-        score = np.sum(evaluation.get_scores(Y_batch, np.argmax(net(X_batch).data, axis=1)))
+        Y_hat = net(X_batch)
+        loss = criterion(Y_hat, Y_batch)
+        loss.backward()
+
+        avg_loss += loss.item() * X_batch.size()[0]
+        
+        score = np.sum(evaluation.get_scores(Y_batch, np.argmax(Y_hat.data, axis=1)))
         avg_score += score
         
-    return avg_score / X_size
+    return avg_score / X_size, avg_loss / X_size
 
 
 def save_checkpoint(state, is_best, model_name, filename='checkpoint.pth.tar'):
