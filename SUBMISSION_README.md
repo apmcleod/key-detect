@@ -2,15 +2,16 @@
 IDs: MO1, MO2, MO3
 
 ## Authors
-Andrew McLeod, amcleaod8@staffmail.ed.ac.uk
-James Owers, james.owers@ed.ac.uk
+
+Andrew McLeod, University of Edinburgh, amcleaod8@staffmail.ed.ac.uk  
+James Owers, University of Edinburgh, james.owers@ed.ac.uk  
 
 ## Installation
 
 ```
-conda create -n key python=3.6 numpy matplotlib jupyter pandas scipy scikit-learn cython seaborn h5py
+conda create -n key python=3.6 numpy pandas scipy scikit-learn h5py
 conda activate key
-conda install pytorch torchvision -c pytorch
+conda install pytorch -c pytorch
 conda install -c conda-forge librosa
 ```
 
@@ -45,6 +46,7 @@ input=data/raw/genres/blues/blues.00000.au  # input data (can be wav/mp3/au)
 output=blues.00000.au.prediction.txt        # file to write precition to
 verbosity=2
 model=1  # 1: MO1, 2: MO2, 3: MO3
+
 ./detect_key.py -m $model -i $input -o $output -v $verbosity
 ```
 
@@ -56,13 +58,11 @@ Another example:
                 # --verbosity 0  # 0 gives minimal printing to console (default)
 ```
 
-####
-Command line calling format for all executables including examples
-Number of threads/cores used or whether this should be specified on the command line
-Expected memory footprint
-Expected runtime
-Approximately how much scratch disk space will the submission need to store any feature/cache files?
-Any required environments/architectures (and versions) such as Matlab, Java, Python, Bash, Ruby etc.
-Any special notice regarding to running your algorithm
+## Additional information
+
+* Number of threads/cores used: 1
+* Expected memory footprint: < 256 MB
+* Expected runtime: < 5 seconds
+* Requirements: latest version of [Conda](https://conda.io/docs/user-guide/install/download.html)
 
 
