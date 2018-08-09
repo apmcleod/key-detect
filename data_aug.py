@@ -91,10 +91,11 @@ def augment_from_dataframe_parallel(proc_id, to_augment):
         
         # Shift with sox
         subprocess.call(['./augment.sh', TMP_DATA, filename, sox_shifts])
-        os.remove(filename)
 
         if delete:
-            basename = os.path.basename(filename)
+            os.remove(filename)
+
+        basename = os.path.basename(filename)
         
         # Read shifted files
         for key_shift in shifts:
