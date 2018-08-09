@@ -10,7 +10,7 @@ import fileio
 import h5py
 
 def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
-                lr=0.0001, weight_decay=0,
+                optimizer=None,
                 device=torch.device("cpu"), seed=None,
                 print_every=1, save_every=10, resume=None, small_ram=False):
     
@@ -36,7 +36,8 @@ def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
     num_batches = math.ceil(train_size / batch_size)
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(net.parameters(), lr=lr, weight_decay=weight_decay)
+    if not optimizer:
+        optimizer = optim.Adam(net.parameters())
     
     epoch_start = 0
     best_score = 0
