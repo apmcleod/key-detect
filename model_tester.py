@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+
+import argparse
 import math
 import numpy as np
 import torch
@@ -6,13 +9,15 @@ import torch.nn as nn
 import torch.optim as optim
 import shutil
 import os
+import sys
 import fileio
 import h5py
 
+
 def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
-                optimizer=None,
-                device=torch.device("cpu"), seed=None,
-                print_every=1, save_every=10, resume=None, small_ram=False):
+                optimizer=None, log_path=None, device=torch.device("cpu"),
+                seed=None, print_every=1, save_every=10, resume=None, 
+                small_ram=False):
     
     if seed:
         torch.manual_seed(seed)
@@ -58,6 +63,13 @@ def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
     print(net)
 
     for epoch in range(epoch_start, num_epochs):
+        if log_path is None:
+            loss_log_file = sys.stderr
+            acc_log_file = sys.stderr
+        else:
+            loss_log_file = open('{}_loss.log'.format(log_path), "a")
+            acc_log_file = open('{}_acc.log'.format(log_path), "a")
+        
         shuffle = np.arange(train_size)
         np.random.shuffle(shuffle)
 
@@ -82,7 +94,6 @@ def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
                 X_batch = torch.from_numpy(X_train_full[indeces]).float().to(device)
                 Y_batch = torch.from_numpy(Y_train_full[indeces]).to(device)
 
-            
             optimizer.zero_grad()
 
             Y_hat = net(X_batch)
@@ -97,6 +108,12 @@ def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
         avg_score = avg_score / train_size
         test_score, test_loss = get_score_batched(net, h5_file, X_test_full, Y_test_full, criterion, small_ram=small_ram, device=device)
         
+        print("{},{}".format(avg_loss, test_loss), file=loss_log_file)
+        print("{},{}".format(avg_score, test_score), file=acc_log_file)
+        if log_path is not None:
+            loss_log_file.close()
+            acc_log_file.close()
+            
         is_best = False
         if test_score > best_score:
             best_score = test_score
@@ -175,3 +192,59 @@ def save_checkpoint(state, is_best, model_name, filename='checkpoint.pth.tar'):
     if is_best:
         shutil.copyfile('{}/{}_{}'.format(fileio.OUTPUT_PREFIX, model_name, filename),
                         '{}/{}_model_best.pth.tar'.format(fileio.OUTPUT_PREFIX, model_name))
+        
+        
+
+if __name__ == '__main__':
+    import full_model
+    
+    parser = argparse.ArgumentParser(description="")
+    parser.add_argument("-m", "--model", help="Which model to use for prediction",
+                        type=int, choices=range(1, 3), required=True)
+    parser.add_argument("-s", "--seed", help="A seed to use for modelling",
+                        type=int, default=None)
+    parser.add_argument("-c", "--cuda", help="Cuda device number to use", 
+                        type=str, default="0")
+    parser.add_argument("-n", "--num-epochs", help="Number of epochs to train", 
+                        type=int, default=100)
+    args = parser.parse_args()
+    
+    model = args.model
+    if model == 1:
+        model_name = 'MO1'
+    elif model == 2:
+        model_name = 'MO1'
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.cuda
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    
+    seed = args.seed
+    if seed:
+        torch.manual_seed(seed)
+    
+    h5_file = 'data/working/data.h5'
+
+    if model_name == 'MO2':
+        net = full_model.ReproductionNet()
+        optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9, 
+                              weight_decay=0.0001)
+    else:
+        model_name = 'MO1'
+        net = full_model.ConvBiLstm()
+        optimizer = optim.Adam(net.parameters(), lr=0.001, weight_decay=0.0001)
+    
+    log_dir = 'data/output/logs'
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    log_path = "{}/{}_trn_tst".format(log_dir, model_name)
+    if os.path.isfile('{}_acc.log'.format(log_path)):
+        os.remove('{}_acc.log'.format(log_path))
+    if os.path.isfile('{}_loss.log'.format(log_path)):
+        os.remove('{}_loss.log'.format(log_path))
+    train_losses, test_losses = train_model(h5_file, net, model_name, 
+                                            num_epochs=args.num_epochs,
+                                            optimizer=optimizer,
+                                            device=device, seed=seed,
+                                            log_path=log_path)
+    
+    
+    
