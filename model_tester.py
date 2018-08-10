@@ -15,7 +15,7 @@ import h5py
 
 
 def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
-                optimizer=None, log_path=None, device=torch.device("cpu"),
+                optimizer=None, scheduler=None, log_path=None, device=torch.device("cpu"),
                 seed=None, print_every=1, save_every=10, resume=None, 
                 small_ram=False):
     
@@ -43,7 +43,7 @@ def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
     criterion = nn.CrossEntropyLoss()
     if not optimizer:
         optimizer = optim.Adam(net.parameters())
-    
+
     epoch_start = 0
     best_score = 0
     global_train_losses = []
@@ -59,6 +59,8 @@ def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
         global_test_losses = checkpoint['global_test_losses']
         global_train_losses = checkpoint['global_train_losses']
         optimizer.load_state_dict(checkpoint['optimizer'])
+        if scheduler:
+            scheduler.load_state_dict(checkpoint['scheduler'])
        
     print(net)
 
@@ -107,6 +109,9 @@ def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
         avg_loss = avg_loss / train_size
         avg_score = avg_score / train_size
         test_score, test_loss = get_score_batched(net, h5_file, X_test_full, Y_test_full, criterion, small_ram=small_ram, device=device)
+
+        if scheduler:
+            scheduler.step(test_score)
         
         print("{},{}".format(avg_loss, test_loss), file=loss_log_file)
         print("{},{}".format(avg_score, test_score), file=acc_log_file)
@@ -135,6 +140,7 @@ def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
                 'global_test_losses': global_test_losses,
                 'global_train_losses': global_train_losses,
                 'optimizer' : optimizer.state_dict(),
+                'scheduler' : scheduler.state_dict() if scheduler else None
             }, is_best, model_name, 'checkpoint.pth.tar')
             if is_best:
                 filename = '{}_model_best.pkl'.format(model_name)
@@ -227,10 +233,12 @@ if __name__ == '__main__':
         net = full_model.ReproductionNet()
         optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9, 
                               weight_decay=0.0001)
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=10,)
     else:
         model_name = 'MO1'
         net = full_model.ConvBiLstm()
         optimizer = optim.Adam(net.parameters(), lr=0.001, weight_decay=0.0001)
+        scheduler = None
     
     log_dir = 'data/output/logs'
     if not os.path.exists(log_dir):
