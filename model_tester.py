@@ -27,7 +27,9 @@ def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
 
     X_test_full = None
     Y_test_full = None
-
+    X_test_flat = None
+    X_test_full = None
+    
     data_file = h5py.File(h5_file, 'r')
     train_size = data_file['X_train'].shape[0]
     test_size = data_file['X_test'].shape[0]
@@ -36,6 +38,16 @@ def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
         Y_train_full = data_file['Y_train'].value
         X_test_full = data_file['X_test'].value
         Y_test_full = data_file['Y_test'].value
+        # Make a test set with an even number of each key
+        unique, counts = np.unique(Y_test_full, return_counts=True)
+        nr_samples = np.min(counts)
+        selected = {}
+        for ii in range(24):
+            these_idx = np.where(Y_test_full==ii)[0]
+            selected[ii] = np.random.choice(these_idx, nr_samples, replace=False)
+        idx_list = np.hstack(selected.values())
+        X_test_flat = X_test_full[idx_list]
+        Y_test_flat = Y_test_full[idx_list]
     data_file.close()
 
     num_batches = math.ceil(train_size / batch_size)
@@ -66,10 +78,16 @@ def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
         if log_path is None:
             loss_log_file = sys.stderr
             acc_log_file = sys.stderr
+        elif epoch==0:
+            loss_log_file = open('{}_loss.log'.format(log_path), "w")
+            acc_log_file = open('{}_acc.log'.format(log_path), "w")
+            print('Train,Test,Test (flat)', file=loss_log_file)
+            print('Train,Test,Test (flat)', file=acc_log_file) 
         else:
             loss_log_file = open('{}_loss.log'.format(log_path), "a")
             acc_log_file = open('{}_acc.log'.format(log_path), "a")
-
+        
+        
         shuffle = np.arange(train_size)
         np.random.shuffle(shuffle)
 
@@ -106,13 +124,16 @@ def train_model(h5_file, net, model_name, batch_size=64, num_epochs=100,
 
         avg_loss = avg_loss / train_size
         avg_score = avg_score / train_size
-        test_score, test_loss = get_score_batched(net, h5_file, X_test_full, Y_test_full, criterion, small_ram=small_ram, device=device)
+        test_score, test_loss = get_score_batched(net, h5_file, X_test_full, Y_test_full, 
+                                                  criterion, small_ram=small_ram, device=device)
+        flat_score, flat_loss = get_score_batched(net, h5_file, X_test_flat, Y_test_flat, 
+                                                  criterion, small_ram=small_ram, device=device)
 
         if scheduler:
             scheduler.step(test_score)
 
-        print("{},{}".format(avg_loss, test_loss), file=loss_log_file)
-        print("{},{}".format(avg_score, test_score), file=acc_log_file)
+        print("{},{},{}".format(avg_loss, test_loss, flat_loss), file=loss_log_file)
+        print("{},{},{}".format(avg_score, test_score, flat_score), file=acc_log_file)
         if log_path is not None:
             loss_log_file.close()
             acc_log_file.close()
@@ -235,16 +256,12 @@ if __name__ == '__main__':
         model_name = 'MO1'
         net = full_model.ConvBiLstm()
         optimizer = optim.Adam(net.parameters(), lr=0.001, weight_decay=0.0001)
-        scheduler = None
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=10, threshold=0.0)
 
     log_dir = 'data/output/logs'
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
     log_path = "{}/{}_trn_tst".format(log_dir, model_name)
-    if os.path.isfile('{}_acc.log'.format(log_path)):
-        os.remove('{}_acc.log'.format(log_path))
-    if os.path.isfile('{}_loss.log'.format(log_path)):
-        os.remove('{}_loss.log'.format(log_path))
     train_losses, test_losses = train_model(h5_file, net, model_name,
                                             num_epochs=args.num_epochs,
                                             optimizer=optimizer, scheduler=scheduler,
