@@ -213,7 +213,7 @@ if __name__ == '__main__':
     if model == 1:
         model_name = 'MO1'
     elif model == 2:
-        model_name = 'MO1'
+        model_name = 'MO2'
     os.environ["CUDA_VISIBLE_DEVICES"] = args.cuda
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     
