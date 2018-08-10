@@ -233,7 +233,7 @@ if __name__ == '__main__':
         net = full_model.ReproductionNet()
         optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9, 
                               weight_decay=0.0001)
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=10,)
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=10, threshold=0.0)
     else:
         model_name = 'MO1'
         net = full_model.ConvBiLstm()
