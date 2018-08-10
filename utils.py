@@ -53,4 +53,31 @@ def number_countplot(ax=None):
         ax.text(p.get_x()+p.get_width()/2.,
                 height + 3,
                 '{:d}'.format(height),
-                ha="center") 
+                ha="center")
+        
+
+def plot_train_test_log(filename):
+    """Simple function for plotting a csv of the form:
+    col,header,here
+    0,1,2
+    3,4,5
+    4,3,2
+    1,0,-1
+    """
+    pd.read_csv(filename).plot()
+    
+        
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
