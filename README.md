@@ -56,6 +56,7 @@ cd giantsteps-mtg-key-dataset-master
 rm master.zip
 
 # creates MillionSongSubset/data - the Million song dataset labels
+# please email james.owers@ed.ac.uk for instructions information about MSD .mp3 files
 wget http://static.echonest.com/millionsongsubset_full.tar.gz
 tar -xzf millionsongsubset_full.tar.gz
 # creates MillionSongSubset
